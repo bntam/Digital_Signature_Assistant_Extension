@@ -11,6 +11,72 @@
 
   console.log('BV Phuyen Extension: Content script loaded');
 
+  // Global cleanup registry to prevent memory leaks
+  const cleanupRegistry = {
+    intervals: [],
+    timeouts: [],
+    eventListeners: [],
+    overrides: []
+  };
+
+  // Enhanced cleanup function
+  function cleanup() {
+    console.log('🧹 Content Script: Starting cleanup...');
+    
+    // Clear all intervals
+    cleanupRegistry.intervals.forEach(interval => {
+      clearInterval(interval);
+      console.log('✅ Cleared interval:', interval);
+    });
+    cleanupRegistry.intervals = [];
+    
+    // Clear all timeouts
+    cleanupRegistry.timeouts.forEach(timeout => {
+      clearTimeout(timeout);
+      console.log('✅ Cleared timeout:', timeout);
+    });
+    cleanupRegistry.timeouts = [];
+    
+    // Remove all event listeners
+    cleanupRegistry.eventListeners.forEach(({ element, event, handler, options }) => {
+      element.removeEventListener(event, handler, options);
+      console.log('✅ Removed event listener:', event);
+    });
+    cleanupRegistry.eventListeners = [];
+    
+    // Restore original functions
+    cleanupRegistry.overrides.forEach(({ object, property, original }) => {
+      object[property] = original;
+      console.log('✅ Restored original function:', property);
+    });
+    cleanupRegistry.overrides = [];
+    
+    console.log('🧹 Content Script: Cleanup completed');
+  }
+
+  // Helper functions to register cleanup items
+  function registerInterval(intervalId) {
+    cleanupRegistry.intervals.push(intervalId);
+    return intervalId;
+  }
+
+  function registerTimeout(timeoutId) {
+    cleanupRegistry.timeouts.push(timeoutId);
+    return timeoutId;
+  }
+
+  function registerEventListener(element, event, handler, options = false) {
+    element.addEventListener(event, handler, options);
+    cleanupRegistry.eventListeners.push({ element, event, handler, options });
+  }
+
+  function registerOverride(object, property, newFunction) {
+    const original = object[property];
+    cleanupRegistry.overrides.push({ object, property, original });
+    object[property] = newFunction;
+    return original;
+  }
+
   // Create and inject the status icon
   function createStatusIcon() {
     // Remove existing icon if present
@@ -31,7 +97,7 @@
     statusIcon.appendChild(tooltip);
 
     // Add click event to open new tab
-    statusIcon.addEventListener('click', openMedicalDashboard);
+    registerEventListener(statusIcon, 'click', openMedicalDashboard);
 
     // Inject into page
     document.body.appendChild(statusIcon);
@@ -176,7 +242,7 @@
     // Enhanced monitoring with multiple approaches for better reliability
     
     // Method 1: Storage event listener (most reliable for cross-tab changes)
-    window.addEventListener('storage', (e) => {
+    const storageHandler = (e) => {
       if (e.key === 'hisl2_smartca' || e.key === null) {
         console.log('🔄 Storage event detected for hisl2_smartca:', {
           key: e.key,
@@ -191,10 +257,11 @@
           lastSmartCAData = currentSmartCAData;
         }
       }
-    });
+    };
+    registerEventListener(window, 'storage', storageHandler);
     
     // Method 2: Enhanced setInterval with reduced frequency but better detection
-    const monitorInterval = setInterval(() => {
+    const monitorInterval = registerInterval(setInterval(() => {
       try {
         const currentSmartCAData = sessionStorage.getItem('hisl2_smartca');
         
@@ -214,37 +281,37 @@
       } catch (error) {
         console.error('❌ Error monitoring SmartCA sessionStorage:', error);
       }
-    }, 1000); // Reduced to 1 second for faster detection
+    }, 1000)); // Reduced to 1 second for faster detection
     
     // Method 3: Custom event listener for SmartCA changes (if the app fires custom events)
-    document.addEventListener('smartcaUpdated', (e) => {
+    const customEventHandler = (e) => {
       console.log('🔄 Custom smartcaUpdated event detected:', e.detail);
       const currentSmartCAData = sessionStorage.getItem('hisl2_smartca');
       if (currentSmartCAData !== lastSmartCAData) {
         notifySmartCAChange(currentSmartCAData);
         lastSmartCAData = currentSmartCAData;
       }
-    });
+    };
+    registerEventListener(document, 'smartcaUpdated', customEventHandler);
     
     // Method 4: Override sessionStorage.setItem to catch direct modifications
-    const originalSetItem = sessionStorage.setItem;
-    sessionStorage.setItem = function(key, value) {
+    const originalSetItem = registerOverride(sessionStorage, 'setItem', function(key, value) {
       const result = originalSetItem.apply(this, arguments);
       
       if (key === 'hisl2_smartca') {
         console.log('🔄 Direct sessionStorage.setItem detected for hisl2_smartca');
         // Use setTimeout to ensure the value is actually set
-        setTimeout(() => {
+        const timeoutId = registerTimeout(setTimeout(() => {
           const currentSmartCAData = sessionStorage.getItem('hisl2_smartca');
           if (currentSmartCAData !== lastSmartCAData) {
             notifySmartCAChange(currentSmartCAData);
             lastSmartCAData = currentSmartCAData;
           }
-        }, 10);
+        }, 10));
       }
       
       return result;
-    };
+    });
     
     // Helper function to notify about SmartCA changes
     function notifySmartCAChange(currentSmartCAData) {
@@ -298,16 +365,20 @@
   function init() {
     // Wait for DOM to be ready
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', createStatusIcon);
+      registerEventListener(document, 'DOMContentLoaded', createStatusIcon);
     } else {
       createStatusIcon();
     }
 
     // Also create icon when page is fully loaded (in case of dynamic content)
-    window.addEventListener('load', createStatusIcon);
+    registerEventListener(window, 'load', createStatusIcon);
     
     // Setup SmartCA sessionStorage monitoring
     setupSmartCAMonitor();
+    
+    // Setup cleanup on page unload
+    registerEventListener(window, 'beforeunload', cleanup);
+    registerEventListener(window, 'unload', cleanup);
   }
 
   // Check if user is authenticated (look for JWT token or session indicators)
@@ -341,16 +412,16 @@
     window.fetch = function(...args) {
       return originalFetch.apply(this, args).then(response => {
         // Update status after API calls that might change auth state
-        setTimeout(updateIconStatus, 500);
+        const timeoutId = registerTimeout(setTimeout(updateIconStatus, 500));
         return response;
       });
     };
 
     // Monitor storage changes
-    window.addEventListener('storage', updateIconStatus);
+    registerEventListener(window, 'storage', updateIconStatus);
     
     // Initial status check
-    setTimeout(updateIconStatus, 1000);
+    const timeoutId = registerTimeout(setTimeout(updateIconStatus, 1000));
   }
 
   // Listen for messages from extension (dashboard or popup)

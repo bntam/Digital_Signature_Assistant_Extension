@@ -16,6 +16,24 @@ class UIComponents {
         }
     }
 
+    // HTML sanitization for XSS prevention
+    escapeHtml(text) {
+        if (typeof text !== 'string') return String(text || '');
+        
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Safe innerHTML wrapper for user data
+    safeInnerHTML(element, htmlContent) {
+        if (typeof htmlContent !== 'string') {
+            element.textContent = String(htmlContent || '');
+            return;
+        }
+        element.innerHTML = htmlContent;
+    }
+
     // Initialize event listeners
     initializeEventListeners() {
         // Search functionality
@@ -27,7 +45,7 @@ class UIComponents {
         }
     }
 
-    // Show notification
+    // Show notification with XSS protection
     showNotification(message, type = 'info', duration = 5000) {
         if (!this.notificationContainer) {
             console.warn('Notification container not found');
@@ -36,12 +54,28 @@ class UIComponents {
 
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
-        notification.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span>${message}</span>
-                <button onclick="this.parentElement.parentElement.remove()" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #666;">×</button>
-            </div>
-        `;
+        
+        // Create notification content safely
+        const contentDiv = document.createElement('div');
+        contentDiv.style.display = 'flex';
+        contentDiv.style.justifyContent = 'space-between';
+        contentDiv.style.alignItems = 'center';
+        
+        const messageSpan = document.createElement('span');
+        messageSpan.textContent = message; // Safe text assignment
+        
+        const closeButton = document.createElement('button');
+        closeButton.textContent = '×';
+        closeButton.style.background = 'none';
+        closeButton.style.border = 'none';
+        closeButton.style.fontSize = '18px';
+        closeButton.style.cursor = 'pointer';
+        closeButton.style.color = '#666';
+        closeButton.onclick = () => notification.remove();
+        
+        contentDiv.appendChild(messageSpan);
+        contentDiv.appendChild(closeButton);
+        notification.appendChild(contentDiv);
 
         this.notificationContainer.appendChild(notification);
 
@@ -300,21 +334,33 @@ class UIComponents {
             return;
         }
 
-        // Render patient items
+        // Render patient items with XSS protection
         patientsList.innerHTML = patients.map((patient, index) => {
             // Find original index in this.patients array
             const originalIndex = this.patients.findIndex(p => p.TIEPNHANID === patient.TIEPNHANID);
+            
+            // Sanitize all user data to prevent XSS
+            const mabenhan = this.escapeHtml(patient.MABENHAN || 'N/A');
+            const mabenhnhan = this.escapeHtml(patient.MABENHNHAN || 'N/A');
+            const tenbenhnhan = this.escapeHtml(patient.TENBENHNHAN || 'Tên không có');
+            const ngaysinh = this.escapeHtml(patient.NGAYSINH || 'N/A');
+            const gioitinh = this.escapeHtml(patient.GIOITINH || 'N/A');
+            const tenphong = this.escapeHtml(patient.TENPHONG || 'N/A');
+            const mabhyt = patient.MA_BHYT ? this.escapeHtml(patient.MA_BHYT) : '';
+            const benhchinh = this.escapeHtml(patient.BENHCHINH || patient.CHANDOANRAVIEN || 'N/A');
+            const trangthai = this.escapeHtml(patient.TEN_TRANGTHAI || 'N/A');
+            
             return `
                 <div class="patient-item" data-patient-index="${originalIndex}">
-                    <div class="patient-id">#${patient.MABENHAN || 'N/A'} - ${patient.MABENHNHAN || 'N/A'}</div>
-                    <div class="patient-name">${patient.TENBENHNHAN || 'Tên không có'}</div>
+                    <div class="patient-id">#${mabenhan} - ${mabenhnhan}</div>
+                    <div class="patient-name">${tenbenhnhan}</div>
                     <div class="patient-info">
-                        <span>📅 ${patient.NGAYSINH || 'N/A'}</span>
-                        <span>👤 ${patient.GIOITINH || 'N/A'}</span>
-                        <span>🏥 ${patient.TENPHONG || 'N/A'}</span>
-                        ${patient.MA_BHYT ? `<span>💳 BHYT: ${patient.MA_BHYT}</span>` : ''}
-                        <span>🩺 ${patient.BENHCHINH || patient.CHANDOANRAVIEN || 'N/A'}</span>
-                        <span>📊 ${patient.TEN_TRANGTHAI || 'N/A'}</span>
+                        <span>📅 ${ngaysinh}</span>
+                        <span>👤 ${gioitinh}</span>
+                        <span>🏥 ${tenphong}</span>
+                        ${mabhyt ? `<span>💳 BHYT: ${mabhyt}</span>` : ''}
+                        <span>🩺 ${benhchinh}</span>
+                        <span>📊 ${trangthai}</span>
                     </div>
                 </div>
             `;
@@ -449,6 +495,13 @@ class UIComponents {
             const isDisabled = procedure.FLAG_CA == 1;
             const titleColor = procedure.FLAG_CA != 1 ? 'color: red;' : '';
             
+            // Sanitize all user data to prevent XSS
+            const tenphieu = this.escapeHtml(procedure.TENPHIEU || 'Tên phiếu không có');
+            const sophieu = this.escapeHtml(procedure.SOPHIEU || 'N/A');
+            const nguoitao = this.escapeHtml(procedure.NGUOITAO || 'N/A');
+            const statusText = procedure.TRANGTHAIMAUBENHPHAM ? 
+                this.escapeHtml(this.getProcedureStatusText(procedure.TRANGTHAIMAUBENHPHAM)) : '';
+            
             return `
             <div class="procedure-item" data-procedure-index="${index}" 
                  style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px; transition: background-color 0.2s;">
@@ -459,12 +512,12 @@ class UIComponents {
                            ${isDisabled ? 'disabled' : ''}
                            style="margin-top: 5px;">
                     <div style="flex: 1;">
-                        <div class="procedure-name" style="${titleColor}">${procedure.TENPHIEU || 'Tên phiếu không có'}</div>
+                        <div class="procedure-name" style="${titleColor}">${tenphieu}</div>
                         <div class="procedure-info">
                             <span>📅 ${this.formatDate(procedure.NGAYMAUBENHPHAM)}</span>
-                            <span>📄 Số phiếu: ${procedure.SOPHIEU || 'N/A'}</span>
-                            <span>👨‍⚕️ ${procedure.NGUOITAO || 'N/A'}</span>
-                            ${procedure.TRANGTHAIMAUBENHPHAM ? `<span>📊 Trạng thái: ${this.getProcedureStatusText(procedure.TRANGTHAIMAUBENHPHAM)}</span>` : ''}
+                            <span>📄 Số phiếu: ${sophieu}</span>
+                            <span>👨‍⚕️ ${nguoitao}</span>
+                            ${statusText ? `<span>📊 Trạng thái: ${statusText}</span>` : ''}
                         </div>
                     </div>
                 </div>

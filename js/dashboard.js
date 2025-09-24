@@ -4,12 +4,106 @@
 class MedicalDashboard {
     constructor() {
         console.log('MedicalDashboard constructor called');
+        
+        // Initialize cleanup registry for memory leak prevention
+        this.cleanupRegistry = {
+            intervals: [],
+            timeouts: [],
+            eventListeners: [],
+            messageListeners: [],
+            storageListeners: []
+        };
+        
         this.apiService = new ApiService();
         console.log('ApiService created:', this.apiService);
         this.ui = new UIComponents();
         console.log('UIComponents created:', this.ui);
         
-        this.initialize();
+        // Setup cleanup on page unload
+        this.registerEventListener(window, 'beforeunload', () => this.cleanup());
+        this.registerEventListener(window, 'unload', () => this.cleanup());
+        
+        // Store initialization promise to prevent race conditions
+        this.initializationPromise = this.initialize();
+        
+        // SmartCA deduplication tracking
+        this.lastSmartCATimestamp = null;
+    }
+
+    // Cleanup registry methods for memory leak prevention
+    registerInterval(intervalId) {
+        this.cleanupRegistry.intervals.push(intervalId);
+        return intervalId;
+    }
+
+    registerTimeout(timeoutId) {
+        this.cleanupRegistry.timeouts.push(timeoutId);
+        return timeoutId;
+    }
+
+    registerEventListener(element, event, handler, options = false) {
+        element.addEventListener(event, handler, options);
+        this.cleanupRegistry.eventListeners.push({ element, event, handler, options });
+    }
+
+    registerMessageListener(handler) {
+        chrome.runtime.onMessage.addListener(handler);
+        this.cleanupRegistry.messageListeners.push(handler);
+        return handler;
+    }
+
+    registerStorageListener(handler) {
+        chrome.storage.onChanged.addListener(handler);
+        this.cleanupRegistry.storageListeners.push(handler);
+        return handler;
+    }
+
+    // Comprehensive cleanup function
+    cleanup() {
+        console.log('🧹 Dashboard: Starting cleanup...');
+        
+        // Clear all intervals
+        this.cleanupRegistry.intervals.forEach(interval => {
+            clearInterval(interval);
+            console.log('✅ Dashboard: Cleared interval:', interval);
+        });
+        this.cleanupRegistry.intervals = [];
+        
+        // Clear all timeouts
+        this.cleanupRegistry.timeouts.forEach(timeout => {
+            clearTimeout(timeout);
+            console.log('✅ Dashboard: Cleared timeout:', timeout);
+        });
+        this.cleanupRegistry.timeouts = [];
+        
+        // Remove all event listeners
+        this.cleanupRegistry.eventListeners.forEach(({ element, event, handler, options }) => {
+            element.removeEventListener(event, handler, options);
+            console.log('✅ Dashboard: Removed event listener:', event);
+        });
+        this.cleanupRegistry.eventListeners = [];
+        
+        // Clean up Chrome extension message listeners
+        this.cleanupRegistry.messageListeners.forEach(handler => {
+            try {
+                chrome.runtime.onMessage.removeListener(handler);
+            } catch (e) {
+                console.warn('⚠️ Dashboard: Could not remove message listener:', e);
+            }
+        });
+        this.cleanupRegistry.messageListeners = [];
+        
+        // Clean up Chrome storage listeners
+        this.cleanupRegistry.storageListeners.forEach(handler => {
+            try {
+                chrome.storage.onChanged.removeListener(handler);
+            } catch (e) {
+                console.warn('⚠️ Dashboard: Could not remove storage listener:', e);
+            }
+        });
+        this.cleanupRegistry.storageListeners = [];
+        
+        console.log('🧹 Dashboard: Cleanup completed');
     }
 
     // Initialize dashboard
@@ -288,14 +382,11 @@ class MedicalDashboard {
     setupEventListeners() {
         console.log('Setting up event listeners...');
         
-
-
         // Load patients button
         const loadPatientsBtn = document.getElementById('loadPatientsBtn');
         if (loadPatientsBtn) {
-            loadPatientsBtn.addEventListener('click', async () => {
+            this.registerEventListener(loadPatientsBtn, 'click', async () => {
                 console.log('Load patients button clicked');
-                console.log('this context:', this);
                 try {
                     await this.loadPatients();
                 } catch (error) {
@@ -310,9 +401,8 @@ class MedicalDashboard {
         // Doctor filter for patients
         const doctorFilter = document.getElementById('doctorFilter');
         if (doctorFilter) {
-            doctorFilter.addEventListener('change', async () => {
+            this.registerEventListener(doctorFilter, 'change', async () => {
                 console.log('Doctor filter changed');
-                console.log('this context:', this);
                 try {
                     await this.handleDoctorFilter();
                 } catch (error) {
@@ -327,7 +417,7 @@ class MedicalDashboard {
         // PTTT filters
         const procedureDoctorFilter = document.getElementById('procedureDoctorFilter');
         if (procedureDoctorFilter) {
-            procedureDoctorFilter.addEventListener('change', () => {
+            this.registerEventListener(procedureDoctorFilter, 'change', () => {
                 console.log('Procedure doctor filter changed to:', procedureDoctorFilter.value);
                 this.handleProcedureFilters();
             });
@@ -338,7 +428,7 @@ class MedicalDashboard {
 
         const procedureTypeFilter = document.getElementById('procedureTypeFilter');
         if (procedureTypeFilter) {
-            procedureTypeFilter.addEventListener('change', () => {
+            this.registerEventListener(procedureTypeFilter, 'change', () => {
                 console.log('Procedure type filter changed to:', procedureTypeFilter.value);
                 this.handleProcedureFilters();
             });
@@ -350,7 +440,7 @@ class MedicalDashboard {
         // Status indicators click handlers
         const uuidStatus = document.getElementById('uuidStatus');
         if (uuidStatus) {
-            uuidStatus.addEventListener('click', async () => {
+            this.registerEventListener(uuidStatus, 'click', async () => {
                 console.log('UUID status clicked - refreshing session data');
                 this.ui.showNotification('🔄 Đang làm mới dữ liệu UUID...', 'info');
                 await this.extractAndStoreSessionData();
@@ -360,7 +450,7 @@ class MedicalDashboard {
 
         const smartcaStatus = document.getElementById('smartcaStatus');
         if (smartcaStatus) {
-            smartcaStatus.addEventListener('click', async () => {
+            this.registerEventListener(smartcaStatus, 'click', async () => {
                 console.log('SmartCA status clicked - attempting SmartCA trigger');
                 this.ui.showNotification('🔒 Đang kích hoạt/refresh SmartCA...', 'info');
                 await this.triggerSmartCALogin();
@@ -371,7 +461,7 @@ class MedicalDashboard {
         // Signature action buttons (moved to panel-filters)
         const signProceduresBtn = document.getElementById('signProcedures');
         if (signProceduresBtn) {
-            signProceduresBtn.addEventListener('click', async () => {
+            this.registerEventListener(signProceduresBtn, 'click', async () => {
                 console.log('Sign procedures button clicked');
                 await this.ui.signSelectedProcedures();
             });
@@ -380,7 +470,7 @@ class MedicalDashboard {
 
         const cancelSignProceduresBtn = document.getElementById('cancelSignProcedures');
         if (cancelSignProceduresBtn) {
-            cancelSignProceduresBtn.addEventListener('click', async () => {
+            this.registerEventListener(cancelSignProceduresBtn, 'click', async () => {
                 console.log('Cancel sign procedures button clicked');
                 await this.ui.cancelSignSelectedProcedures();
             });
@@ -388,7 +478,7 @@ class MedicalDashboard {
         }
 
         // Global error handler
-        window.addEventListener('unhandledrejection', (event) => {
+        this.registerEventListener(window, 'unhandledrejection', (event) => {
             console.error('Unhandled promise rejection:', event.reason);
             this.ui.showNotification(`Lỗi: ${event.reason.message}`, 'error');
         });
@@ -1017,8 +1107,8 @@ class MedicalDashboard {
     setupSmartCAMonitoring() {
         console.log('🔍 Dashboard: Setting up SmartCA monitoring...');
         
-        // Listen for messages from content script/background
-        chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        // Listen for messages from content script/background - registered for cleanup
+        const messageHandler = (message, sender, sendResponse) => {
             console.log('📨 Dashboard: Received message:', message.action, 'from:', sender);
             
             if (message.action === 'smartcaDataUpdated') {
@@ -1032,10 +1122,11 @@ class MedicalDashboard {
             }
             
             return false;
-        });
+        };
+        this.registerMessageListener(messageHandler);
         
         // Enhanced Chrome storage listener for SmartCA data changes
-        chrome.storage.onChanged.addListener((changes, namespace) => {
+        const storageHandler = (changes, namespace) => {
             if (namespace === 'local') {
                 if (changes.smartcaSessionData) {
                     console.log('🔄 Dashboard: SmartCA data changed in storage:', {
@@ -1049,15 +1140,17 @@ class MedicalDashboard {
                     );
                 }
             }
-        });
+        };
+        this.registerStorageListener(storageHandler);
         
         // Check for stored SmartCA data on startup and periodically
         this.checkStoredSmartCAData();
         
-        // Set up periodic checking for SmartCA data in case of missed events
-        setInterval(() => {
+        // Set up periodic checking for SmartCA data in case of missed events - registered for cleanup
+        const smartcaCheckInterval = setInterval(() => {
             this.checkStoredSmartCAData();
         }, 5000); // Check every 5 seconds
+        this.registerInterval(smartcaCheckInterval);
         
         // Add manual debugging function
         window.debugSmartCAStatus = () => {
@@ -1079,8 +1172,18 @@ class MedicalDashboard {
         console.log('🔄 Dashboard: handleSmartCAUpdate called with:', {
             hasData: !!smartcaDataString,
             dataLength: smartcaDataString ? smartcaDataString.length : 0,
-            timestamp: timestamp
+            timestamp: timestamp,
+            lastTimestamp: this.lastSmartCATimestamp
         });
+        
+        // Deduplication: Skip if we've already processed this timestamp
+        if (timestamp && this.lastSmartCATimestamp === timestamp) {
+            console.log('⏭️ Dashboard: Skipping duplicate SmartCA update for timestamp:', timestamp);
+            return;
+        }
+        
+        // Update last processed timestamp
+        this.lastSmartCATimestamp = timestamp;
         
         try {
             if (smartcaDataString && smartcaDataString !== 'null') {
@@ -1152,22 +1255,18 @@ class MedicalDashboard {
         try {
             const result = await chrome.storage.local.get(['smartcaSessionData', 'smartcaUpdateTimestamp']);
             
-            if (result.smartcaSessionData) {
-                console.log('📦 Found stored SmartCA data from startup');
+            if (result.smartcaSessionData && result.smartcaUpdateTimestamp) {
+                console.log('📦 Found stored SmartCA data from polling check');
                 
-                // Update extension's sessionStorage
-                sessionStorage.setItem('hisl2_smartca', result.smartcaSessionData);
+                // Use the same deduplication logic as real-time updates
+                this.handleSmartCAUpdate(result.smartcaSessionData, result.smartcaUpdateTimestamp);
                 
-                // Update UI
-                this.updateStatusIndicators();
-                
-                console.log('✅ SmartCA data loaded from storage on startup');
             } else {
-                console.log('📭 No stored SmartCA data found on startup');
+                console.log('📭 No stored SmartCA data found during polling check');
             }
             
         } catch (error) {
-            console.error('❌ Error checking stored SmartCA data:', error);
+            console.error('❌ Error checking stored SmartCA data during polling:', error);
         }
     }
 
@@ -1175,7 +1274,7 @@ class MedicalDashboard {
 }
 
 // Initialize dashboard when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     console.log('DOM loaded, initializing dashboard...');
     
     try {
@@ -1185,6 +1284,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Debug helper - expose API service for console debugging
         window.api = window.dashboard.apiService;
+        
+        // Wait for async initialization to complete
+        await window.dashboard.initializationPromise;
         
         console.log('Dashboard initialized successfully.');
         console.log('Available globals:', {
