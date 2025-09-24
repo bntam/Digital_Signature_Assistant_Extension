@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BV Phuyen Assistant</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="popup-container">
+        <header class="popup-header">
+            <h1>🏥 BV Phuyen</h1>
+            <p>Medical Assistant</p>
+        </header>
+        
+        <main class="popup-content">
+            <div class="status-section">
+                <div class="status-item">
+                    <span class="status-label">Trạng thái:</span>
+                    <span class="status-value" id="connectionStatus">Đang kiểm tra...</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Domain:</span>
+                    <span class="status-value" id="currentDomain">N/A</span>
+                </div>
+            </div>
+            
+            <div class="actions-section">
+                <button id="openDashboardBtn" class="btn btn-primary">
+                    <span class="icon">📊</span>
+                    Mở Dashboard
+                </button>
+                
+                <button id="refreshStatusBtn" class="btn btn-secondary">
+                    <span class="icon">🔄</span>
+                    Làm mới
+                </button>
+            </div>
+            
+            <div class="info-section">
+                <div class="info-item">
+                    <span class="label">Phiên bản:</span>
+                    <span class="value">1.0.0</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Cập nhật:</span>
+                    <span class="value" id="lastUpdate">Chưa có</span>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>

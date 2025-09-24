@@ -1,0 +1,103 @@
+/* Status icon styles for BV Phuyen extension */
+
+.bv-status-icon {
+  position: fixed;
+  bottom: 5px;
+  left: -25px; /* Move half the width to the left to show only half circle */
+  width: 50px;
+  height: 50px;
+  background: transparent;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+  cursor: pointer;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  overflow: hidden;
+}
+
+.bv-status-icon:hover {
+  left: 10px; /* Slide out on hover */
+  transform: rotate(360deg) scale(1.1);
+  box-shadow: 0 6px 20px rgba(33, 150, 243, 0.8);
+  background: linear-gradient(45deg, #2196F3, #21CBF3);
+}
+
+.bv-status-icon::after {
+  content: '😳';
+  font-size: 24px;
+  color: white;
+}
+
+.bv-status-icon.loading {
+  background: #ff9800;
+  animation: pulse 1.5s infinite;
+}
+
+.bv-status-icon.error {
+  background: #f44336;
+}
+
+.bv-status-icon.success {
+  background: #4caf50;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes rotateIn {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  100% {
+    transform: rotate(360deg) scale(1.1);
+  }
+}
+
+@keyframes slideReveal {
+  0% {
+    left: -25px;
+    opacity: 0.8;
+  }
+  100% {
+    left: 10px;
+    opacity: 1;
+  }
+}
+
+/* Tooltip for status icon */
+.bv-status-tooltip {
+  position: absolute;
+  bottom: 60px;
+  left: 25px; /* Adjust for left-aligned icon */
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: all 0.3s ease;
+  pointer-events: none;
+  z-index: 10001;
+}
+
+.bv-status-icon:hover .bv-status-tooltip {
+  opacity: 1;
+  transform: translateX(0);
+}

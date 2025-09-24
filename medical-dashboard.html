@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Signature Assistant Extension - BV Phuyen</title>
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-left">
+                <h1>🖊️ Digital Signature Assistant Extension</h1>
+            </div>
+            <div class="header-right">
+                <!-- Status Indicators -->
+                <div class="status-indicators">
+                    <div class="status-item" id="uuidStatus" title="UUID Status">
+                        <span class="status-icon">🔑</span>
+                        <span class="status-text">Login</span>
+                        <span class="status-dot" id="uuidDot"></span>
+                    </div>
+                    <div class="status-item" id="smartcaStatus" title="SmartCA Status">
+                        <span class="status-icon">🔒</span>
+                        <span class="status-text">SmartCA</span>
+                        <span class="status-dot" id="smartcaDot"></span>
+                    </div>
+                </div>
+                
+                <div class="auth-status" id="authStatus">
+                    <span class="status-indicator"></span>
+                    <span class="status-text">Đang kiểm tra...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="dashboard-main">
+            <!-- Left Panel - Patient List -->
+            <section class="panel panel-left">
+                <div class="panel-header">
+                    <h2>📋 Danh sách Bệnh nhân</h2>
+                    <div class="panel-actions">
+                        <button id="loadPatientsBtn" class="btn btn-secondary">
+                            <span class="icon">🔄</span>
+                        </button>
+                        <div class="search-box">
+                            <input type="text" id="patientSearch" placeholder="Tìm kiếm bệnh nhân...">
+                        </div>
+                        <div class="filter-box">
+                            <select id="doctorFilter" class="filter-select">
+                                <option value="all">Tất cả bác sĩ</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div id="patientsList" class="data-list">
+                        <div class="loading-state" id="patientsLoading">
+                            <div class="spinner"></div>
+                            <p>Đang tải danh sách bệnh nhân...</p>
+                        </div>
+                        <div class="empty-state" id="patientsEmpty" style="display: none;">
+                            <p>Không có dữ liệu bệnh nhân</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Panel - Procedures (PTTT) -->
+            <section class="panel panel-right">
+                <div class="panel-header">
+                    <h2>🔬 Danh sách Phiếu</h2>
+                    <div class="selected-patient" id="selectedPatient">
+                        <span class="label">Bệnh nhân:</span>
+                        <span class="patient-name">Chưa chọn</span>
+                    </div>
+                    <div class="panel-filters">
+                        <div class="filter-box">
+                            <select id="procedureDoctorFilter" class="filter-select">
+                                <option value="all">Tất cả bác sĩ</option>
+                            </select>
+                        </div>
+                        <div class="filter-box">
+                            <select id="procedureTypeFilter" class="filter-select">
+                                <option value="all">Tất cả loại phiếu</option>
+                                <!-- Dynamic options populated from actual data -->
+                            </select>
+                        </div>
+                        <div class="signature-actions" id="signatureActions">
+                            <!-- Signature buttons will be dynamically moved here -->
+                        </div>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div id="proceduresList" class="data-list">
+                        <div class="placeholder-state" id="proceduresPlaceholder">
+                            <p>👈 Vui lòng chọn bệnh nhân để xem danh sách PTTT</p>
+                        </div>
+                        <div class="loading-state" id="proceduresLoading" style="display: none;">
+                            <div class="spinner"></div>
+                            <p>Đang tải danh sách PTTT...</p>
+                        </div>
+                        <div class="empty-state" id="proceduresEmpty" style="display: none;">
+                            <p>Không có dữ liệu PTTT cho bệnh nhân này</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="dashboard-footer">
+            <div class="footer-info">
+                <span>Digital Signature Assistant Extension v1.0</span>
+                <span class="separator">|</span>
+                <span id="lastUpdate">Cập nhật lần cuối: Chưa có</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Notification System -->
+    <div id="notificationContainer" class="notification-container"></div>
+
+    <!-- Scripts -->
+    <script src="js/api-service.js"></script>
+    <script src="js/ui-components.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>
