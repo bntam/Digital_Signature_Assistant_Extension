@@ -8,11 +8,29 @@ class UIComponents {
         this.patients = [];
         this.procedures = [];
         
+        // Initialize event bus communication
+        this.initializeEventBus();
+        
         // Wait for DOM to be ready before initializing
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => this.initializeEventListeners());
         } else {
             this.initializeEventListeners();
+        }
+    }
+    
+    // Initialize event bus subscriptions for decoupled communication
+    initializeEventBus() {
+        // Listen for patient selection events
+        if (window.eventBus) {
+            window.eventBus.on('patient:selected', (patient) => {
+                this.selectedPatient = patient;
+            });
+            
+            // Listen for data update events
+            window.eventBus.on('procedures:dataChanged', () => {
+                this.requestProceduresRefresh();
+            });
         }
     }
 
@@ -271,6 +289,12 @@ class UIComponents {
 
         // Update selected patient info
         this.selectedPatient = this.patients[index];
+        
+        // Emit patient selection event for decoupled communication
+        if (window.eventBus) {
+            window.eventBus.emit('patient:selected', this.selectedPatient);
+        }
+        
         const selectedPatientEl = document.getElementById('selectedPatient');
         
         if (selectedPatientEl && this.selectedPatient) {
@@ -279,8 +303,14 @@ class UIComponents {
                 patientNameEl.textContent = `${this.selectedPatient.TENBENHNHAN || 'Tên không có'} (#${this.selectedPatient.MABENHAN || 'N/A'})`;
             }
             
-            // Load procedures for this patient
-            if (window.dashboard && typeof window.dashboard.loadProcedures === 'function') {
+            // Load procedures for this patient using event bus
+            if (window.eventBus) {
+                window.eventBus.emit('procedures:needRefresh', {
+                    patient: this.selectedPatient,
+                    useCache: true
+                });
+            } else if (window.dashboard && typeof window.dashboard.loadProcedures === 'function') {
+                // Fallback to direct access
                 window.dashboard.loadProcedures(this.selectedPatient);
             } else {
                 console.error('Dashboard loadProcedures not available');
@@ -734,6 +764,7 @@ class UIComponents {
             
             let successCount = 0;
             let errorCount = 0;
+            let failedProcedures = [];
             
             for (let i = 0; i < unsignedProcedures.length; i++) {
                 const procedure = unsignedProcedures[i];
@@ -749,15 +780,46 @@ class UIComponents {
                 } catch (error) {
                     errorCount++;
                     console.error(`❌ Failed to sign procedure ${procedure.TENPHIEU}:`, error);
+                    
+                    // User-friendly error message based on error type
+                    let errorMsg = '❌ Lỗi ký số';
+                    if (error.message.includes('SmartCA') || error.message.includes('session data')) {
+                        errorMsg = '🔒 Lỗi SmartCA - vui lòng kiểm tra kết nối';
+                    } else if (error.message.includes('UUID') || error.message.includes('Authentication')) {
+                        errorMsg = '🔐 Lỗi xác thực - vui lòng đăng nhập lại';
+                    } else if (error.message.includes('network') || error.message.includes('fetch')) {
+                        errorMsg = '🌐 Lỗi kết nối mạng';
+                    }
+                    
+                    // Store detailed error for final summary
+                    failedProcedures = failedProcedures || [];
+                    failedProcedures.push({
+                        name: procedure.TENPHIEU || 'N/A', 
+                        error: errorMsg
+                    });
                 }
             }
             
-            // Show result notification
+            // Show detailed result notification
             if (successCount > 0) {
-                this.showNotification(`✅ Đã ký số thành công ${successCount} phiếu`, 'success');
+                this.showNotification(`✅ Đã ký số thành công ${successCount} phiếu`, 'success', 5000);
             }
             if (errorCount > 0) {
-                this.showNotification(`❌ Không thể ký ${errorCount} phiếu`, 'error');
+                let errorMessage = `❌ Không thể ký ${errorCount} phiếu`;
+                if (failedProcedures.length > 0) {
+                    // Group errors by type for better user understanding
+                    const errorTypes = {};
+                    failedProcedures.forEach(fp => {
+                        if (!errorTypes[fp.error]) errorTypes[fp.error] = 0;
+                        errorTypes[fp.error]++;
+                    });
+                    
+                    const errorDetails = Object.entries(errorTypes)
+                        .map(([error, count]) => `${count} phiếu: ${error}`)
+                        .join(', ');
+                    errorMessage += ` (${errorDetails})`;
+                }
+                this.showNotification(errorMessage, 'error', 10000);
             }
             
             // Refresh data after signing
@@ -831,8 +893,15 @@ class UIComponents {
 
     // Helper function to extract common authentication data
     extractAuthData() {
-        // Get UUID from global ApiService instance
-        const uuid = window.api?.uuid || window.dashboard?.api?.uuid;
+        // Get UUID from global ApiService instance or via event request
+        let uuid = window.api?.uuid || window.dashboard?.apiService?.uuid;
+        
+        // If still no UUID, try to request it via event bus
+        if (!uuid && window.eventBus) {
+            // This could be enhanced to use async event communication
+            // For now, fallback to direct access
+        }
+        
         if (!uuid) {
             throw new Error('UUID not available. Please ensure API service is initialized.');
         }
@@ -1171,10 +1240,28 @@ class UIComponents {
         }
     }
 
+    // Request procedures refresh via event bus (decoupled)
+    requestProceduresRefresh() {
+        if (this.selectedPatient && window.eventBus) {
+            // Emit event instead of direct method call
+            window.eventBus.emit('procedures:needRefresh', {
+                patient: this.selectedPatient
+            });
+        }
+    }
+
     // Refresh procedures data after signing operations
     refreshProceduresData() {
-        if (this.selectedPatient && window.dashboard && typeof window.dashboard.loadProcedures === 'function') {
-            window.dashboard.loadProcedures(this.selectedPatient);
+        if (this.selectedPatient) {
+            // Use event bus for decoupled communication
+            if (window.eventBus) {
+                this.requestProceduresRefresh();
+            } else {
+                // Fallback to direct access if event bus not available
+                if (window.dashboard && typeof window.dashboard.loadProcedures === 'function') {
+                    window.dashboard.loadProcedures(this.selectedPatient);
+                }
+            }
         }
     }
 

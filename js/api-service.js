@@ -343,8 +343,11 @@ class ApiService {
                         window.ui.showNotification('✅ Đăng nhập thành công!', 'success');
                     }
                     
-                    // Reload the current operation if dashboard exists
-                    if (window.dashboard && typeof window.dashboard.refreshData === 'function') {
+                    // Reload the current operation using event bus
+                    if (window.eventBus) {
+                        window.eventBus.emit('auth:loginSuccess');
+                    } else if (window.dashboard && typeof window.dashboard.refreshData === 'function') {
+                        // Fallback to direct access
                         window.dashboard.refreshData();
                     }
                 } else {

@@ -1,6 +1,217 @@
 // Main Dashboard Controller
 // Orchestrates API calls and UI updates
 
+// EventBus for decoupled component communication
+class EventBus {
+    constructor() {
+        this.events = new Map();
+    }
+    
+    // Subscribe to an event
+    on(eventName, handler) {
+        if (!this.events.has(eventName)) {
+            this.events.set(eventName, new Set());
+        }
+        this.events.get(eventName).add(handler);
+        
+        // Return unsubscribe function
+        return () => {
+            const handlers = this.events.get(eventName);
+            if (handlers) {
+                handlers.delete(handler);
+                if (handlers.size === 0) {
+                    this.events.delete(eventName);
+                }
+            }
+        };
+    }
+    
+    // Emit an event
+    emit(eventName, data = null) {
+        const handlers = this.events.get(eventName);
+        if (handlers) {
+            console.log(`📡 EventBus: Emitting ${eventName}`, data);
+            handlers.forEach(handler => {
+                try {
+                    handler(data);
+                } catch (error) {
+                    console.error(`❌ EventBus: Error in handler for ${eventName}:`, error);
+                }
+            });
+        }
+    }
+    
+    // One-time event listener
+    once(eventName, handler) {
+        const unsubscribe = this.on(eventName, (data) => {
+            unsubscribe();
+            handler(data);
+        });
+        return unsubscribe;
+    }
+    
+    // Clear all event listeners
+    clear() {
+        this.events.clear();
+    }
+}
+
+// Create global event bus
+window.eventBus = new EventBus();
+
+
+
+// Debounce utility for preventing rapid API calls
+class DebounceManager {
+    constructor() {
+        this.timeouts = new Map();
+    }
+    
+    // Debounce a function call
+    debounce(key, fn, delay = 500) {
+        // Clear existing timeout
+        if (this.timeouts.has(key)) {
+            clearTimeout(this.timeouts.get(key));
+        }
+        
+        // Set new timeout
+        const timeoutId = setTimeout(() => {
+            this.timeouts.delete(key);
+            fn();
+        }, delay);
+        
+        this.timeouts.set(key, timeoutId);
+    }
+    
+    // Cancel a debounced operation
+    cancel(key) {
+        if (this.timeouts.has(key)) {
+            clearTimeout(this.timeouts.get(key));
+            this.timeouts.delete(key);
+        }
+    }
+    
+    // Clear all pending operations
+    clearAll() {
+        Array.from(this.timeouts.values()).forEach(clearTimeout);
+        this.timeouts.clear();
+    }
+}
+
+// Centralized Error Handling System
+class ErrorHandler {
+    constructor(uiComponent) {
+        this.ui = uiComponent;
+        this.errorCounts = new Map(); // Track repeated errors
+    }
+    
+    // Handle different types of errors with appropriate user messages
+    handleError(error, context, options = {}) {
+        const {
+            showNotification = true,
+            logToConsole = true,
+            errorType = 'general'
+        } = options;
+        
+        // Log to console if enabled
+        if (logToConsole) {
+            console.error(`🚨 Error in ${context}:`, error);
+        }
+        
+        // Track error frequency
+        const errorKey = `${context}:${error.message}`;
+        this.errorCounts.set(errorKey, (this.errorCounts.get(errorKey) || 0) + 1);
+        
+        // Show user-friendly notification
+        if (showNotification && this.ui) {
+            const userMessage = this.getUserFriendlyMessage(error, context, errorType);
+            this.ui.showNotification(userMessage, 'error', 8000);
+        }
+        
+        return error;
+    }
+    
+    // Convert technical errors to user-friendly messages
+    getUserFriendlyMessage(error, context, errorType) {
+        const message = error.message || error.toString();
+        
+        // Network/Connection errors
+        if (message.includes('fetch') || message.includes('NetworkError') || 
+            message.includes('Failed to fetch') || message.includes('ERR_NETWORK')) {
+            return '🌐 Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet và thử lại.';
+        }
+        
+        // Authentication errors
+        if (message.includes('Authentication') || message.includes('login') || 
+            message.includes('401') || message.includes('Unauthorized')) {
+            return '🔐 Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại vào hệ thống BV Phuyen.';
+        }
+        
+        // SmartCA errors
+        if (context.includes('SmartCA') || message.includes('SmartCA')) {
+            return '🔒 Lỗi SmartCA. Vui lòng kiểm tra kết nối SmartCA và thử lại.';
+        }
+        
+        // API errors
+        if (message.includes('HTTP') || message.includes('API')) {
+            if (message.includes('500')) {
+                return '⚠️ Lỗi máy chủ. Vui lòng thử lại sau ít phút.';
+            } else if (message.includes('404')) {
+                return '🔍 Không tìm thấy dữ liệu. Vui lòng kiểm tra lại thông tin.';
+            } else {
+                return '⚠️ Lỗi hệ thống. Vui lòng thử lại hoặc liên hệ hỗ trợ kỹ thuật.';
+            }
+        }
+        
+        // Data processing errors
+        if (message.includes('parse') || message.includes('JSON') || message.includes('Invalid')) {
+            return '📄 Lỗi xử lý dữ liệu. Dữ liệu có thể bị lỗi hoặc không đúng định dạng.';
+        }
+        
+        // Permission errors
+        if (message.includes('permission') || message.includes('blocked') || message.includes('cors')) {
+            return '🚫 Lỗi quyền truy cập. Vui lòng đảm bảo extension có đủ quyền.';
+        }
+        
+        // Generic error based on context
+        switch (context) {
+            case 'patient-loading':
+                return '👥 Không thể tải danh sách bệnh nhân. Vui lòng thử lại.';
+            case 'procedure-loading':
+                return '📋 Không thể tải danh sách PTTT. Vui lòng thử lại.';
+            case 'signing':
+                return '✍️ Không thể thực hiện ký số. Vui lòng kiểm tra SmartCA và thử lại.';
+            case 'initialization':
+                return '⚙️ Lỗi khởi tạo ứng dụng. Vui lòng tải lại trang và thử lại.';
+            default:
+                return `⚠️ Đã xảy ra lỗi. Vui lòng thử lại hoặc liên hệ hỗ trợ kỹ thuật.`;
+        }
+    }
+    
+    // Handle async operation errors with retry logic
+    async handleAsyncError(asyncFn, context, maxRetries = 2) {
+        for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+            try {
+                return await asyncFn();
+            } catch (error) {
+                if (attempt <= maxRetries) {
+                    console.warn(`⚠️ Attempt ${attempt} failed for ${context}, retrying...`);
+                    await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+                } else {
+                    return this.handleError(error, context, { errorType: 'async' });
+                }
+            }
+        }
+    }
+    
+    // Clear error tracking (useful for successful operations)
+    clearErrorTracking(context) {
+        Array.from(this.errorCounts.keys())
+            .filter(key => key.startsWith(context + ':'))
+            .forEach(key => this.errorCounts.delete(key));
+    }
+}
+
 class MedicalDashboard {
     constructor() {
         console.log('MedicalDashboard constructor called');
@@ -28,6 +239,64 @@ class MedicalDashboard {
         
         // SmartCA deduplication tracking
         this.lastSmartCATimestamp = null;
+        
+        // Error handling system
+        this.errorHandler = new ErrorHandler(this.ui);
+        
+        // Performance optimization systems
+        this.debounceManager = new DebounceManager();
+        
+        // Initialize event bus communication
+        this.initializeEventBus();
+    }
+
+    // Initialize event bus subscriptions for decoupled communication
+    initializeEventBus() {
+        if (window.eventBus) {            
+            // Listen for procedure refresh requests
+            window.eventBus.on('procedures:needRefresh', (data) => {
+                if (data && data.patient) {
+                    this.loadProcedures(data.patient);
+                }
+            });
+            
+            // Listen for patient refresh requests
+            window.eventBus.on('patients:needRefresh', (data) => {
+                if (data && data.doctorId) {
+                    this.loadPatientsByDoctor(data.doctorId);
+                }
+            });
+            
+            // Listen for authentication success
+            window.eventBus.on('auth:loginSuccess', () => {
+                this.refreshData();
+            });
+        }
+    }
+
+    // Improved async operation with error handling and user feedback
+    async performAsyncOperation(operation, context, showLoading = true) {
+        try {
+            if (showLoading && this.ui) {
+                this.ui.showLoading(`${context}Loading`, true);
+            }
+            
+            const result = await this.errorHandler.handleAsyncError(operation, context);
+            
+            // Clear error tracking on success
+            this.errorHandler.clearErrorTracking(context);
+            
+            if (showLoading && this.ui) {
+                this.ui.showLoading(`${context}Loading`, false);
+            }
+            
+            return result;
+        } catch (error) {
+            if (showLoading && this.ui) {
+                this.ui.showLoading(`${context}Loading`, false);
+            }
+            throw error;
+        }
     }
 
     // Cleanup registry methods for memory leak prevention
@@ -103,6 +372,13 @@ class MedicalDashboard {
         });
         this.cleanupRegistry.storageListeners = [];
         
+        // Clear pending debounced operations
+        if (this.debounceManager) {
+            this.debounceManager.clearAll();
+        }
+        
+        // Note: Don't clear global event bus as other components may still use it
+        
         console.log('🧹 Dashboard: Cleanup completed');
     }
 
@@ -152,7 +428,7 @@ class MedicalDashboard {
                 console.warn('API is not ready - doctors loaded but patient data will require authentication');
             }
         } catch (error) {
-            console.error('Error during initialization:', error);
+            this.errorHandler.handleError(error, 'initialization', { errorType: 'critical' });
         }
     }
 
@@ -390,7 +666,7 @@ class MedicalDashboard {
                 try {
                     await this.loadPatients();
                 } catch (error) {
-                    console.error('Error in loadPatients from button click:', error);
+                    this.errorHandler.handleError(error, 'patient-loading');
                 }
             });
             console.log('✅ Load patients button listener added');
@@ -398,18 +674,26 @@ class MedicalDashboard {
             console.warn('❌ loadPatientsBtn not found');
         }
 
-        // Doctor filter for patients
+        // Doctor filter for patients with debouncing
         const doctorFilter = document.getElementById('doctorFilter');
         if (doctorFilter) {
-            this.registerEventListener(doctorFilter, 'change', async () => {
+            this.registerEventListener(doctorFilter, 'change', () => {
                 console.log('Doctor filter changed');
-                try {
-                    await this.handleDoctorFilter();
-                } catch (error) {
-                    console.error('Error in handleDoctorFilter from change event:', error);
-                }
+                
+                // Debounce the API call to prevent rapid requests
+                this.debounceManager.debounce(
+                    'doctor-filter-change', 
+                    async () => {
+                        try {
+                            await this.handleDoctorFilter();
+                        } catch (error) {
+                            this.errorHandler.handleError(error, 'doctor-filter');
+                        }
+                    }, 
+                    300 // 300ms delay
+                );
             });
-            console.log('✅ Doctor filter listener added');
+            console.log('✅ Doctor filter listener added with debouncing');
         } else {
             console.warn('❌ doctorFilter not found');
         }
@@ -704,20 +988,15 @@ class MedicalDashboard {
 
     // Load patients by specific doctor
     async loadPatientsByDoctor(doctorId) {
-        try {
+        const operation = async () => {
             console.log('Loading patients for doctor ID:', doctorId);
             
             // Clear any previous error messages first
             this.ui.clearError('patientsList');
             
-            // Show loading state with null checking
-            this.ui.showLoading('patientsLoading', true);
-            
             const patientsEmptyEl = document.getElementById('patientsEmpty');
             if (patientsEmptyEl) {
                 patientsEmptyEl.style.display = 'none';
-            } else {
-                console.warn('patientsEmpty element not found');
             }
             
             // Clear previous data
@@ -729,22 +1008,20 @@ class MedicalDashboard {
             // Process response
             if (response && response.rows) {
                 console.log(`Loaded ${response.rows.length} patients for doctor ${doctorId}`);
+                
                 this.ui.renderPatients(response.rows);
                 
                 const doctor = this.apiService.getDoctorById(doctorId);
                 const doctorName = doctor ? doctor.fullName : `ID ${doctorId}`;
                 this.ui.showNotification(`✅ Đã tải ${response.rows.length} bệnh nhân của BS ${doctorName}`, 'success');
+                return response;
             } else {
-                console.warn('No patient data received for doctor:', doctorId);
-                this.ui.renderPatients([]);
-                this.ui.showNotification('⚠️ Không có dữ liệu bệnh nhân cho bác sĩ này', 'warning');
+                throw new Error(`No patient data received for doctor: ${doctorId}`);
             }
-            
-        } catch (error) {
-            console.error('Failed to load patients by doctor:', error);
-            this.ui.showLoading('patientsLoading', false);
-            this.ui.showError(`Không thể tải danh sách bệnh nhân: ${error.message}`, 'patientsList');
-        }
+        };
+
+        // Execute the operation with error handling
+        return await this.performAsyncOperation(operation, 'patient-loading', true);
     }
 
     // Filter patients by currently selected doctor
@@ -1004,8 +1281,8 @@ class MedicalDashboard {
         return filterInfo.join(', ');
     }
 
-    // Load procedures for selected patient
-    async loadProcedures(patient) {
+    // Load procedures for selected patient with caching
+    async loadProcedures(patient) {        
         try {
             console.log('Loading procedures for patient:', patient);
             console.log('Patient name:', patient.TENBENHNHAN);
