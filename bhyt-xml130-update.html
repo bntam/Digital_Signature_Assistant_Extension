@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cập nhật BHYT XML130 - BV Phuyen</title>
+    <link rel="stylesheet" href="css/xml130-update.css">
+</head>
+<body>
+    <div class="update-container">
+        <!-- Header -->
+        <header class="update-header">
+            <div class="header-left">
+                <h1>💊 Cập nhật Bảo hiểm XML130</h1>
+            </div>
+            <div class="header-right">
+                <div class="auth-status" id="authStatus">
+                    <span class="status-indicator"></span>
+                    <span class="status-text">Đang kiểm tra...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="update-main">
+            <!-- Tabs -->
+            <div class="tabs-container">
+                <div class="tabs-header">
+                    <button class="tab-button active" data-tab="medicines">💊 Danh sách thuốc</button>
+                    <button class="tab-button" data-tab="patients">👥 Danh sách bệnh nhân</button>
+                </div>
+            </div>
+
+            <!-- Tab: Danh sách thuốc -->
+            <div class="tab-content active" id="tab-medicines">
+                <div class="main-layout">
+                    <!-- Left Panel - Connection Codes List -->
+                    <aside class="left-panel">
+                        <div class="panel-header">
+                            <h3>📝 Mã liên kết</h3>
+                            <div class="panel-actions">
+                                <button id="clearInputBtn" class="btn btn-icon" title="Xóa">
+                                    <span class="icon">🗑️</span>
+                                </button>
+                                <button id="searchBtn" class="btn btn-primary">
+                                    <span class="icon">🔍</span> Search
+                                </button>
+                            </div>
+                        </div>
+                        <div class="panel-content">
+                            <textarea 
+                                id="connectionCodesInput" 
+                                class="codes-textarea" 
+                                placeholder="Nhập mã liên kết&#10;(mỗi mã một dòng)&#10;&#10;VD:&#10;450285&#10;450286&#10;450287"
+                                rows="20"
+                            ></textarea>
+                            <div class="input-stats">
+                                <span id="inputStats">0 mã</span>
+                            </div>
+                        </div>
+                    </aside>
+
+                    <!-- Right Panel - Data Table -->
+                    <section class="right-panel">
+                        <div class="panel-header">
+                            <h3>📋 Danh sách thuốc</h3>
+                            <div class="panel-actions">
+                                <button id="updateSelectedBtn" class="btn btn-success" disabled>
+                                    <span class="icon">💾</span> Cập nhật đã chọn
+                                </button>
+                            </div>
+                        </div>
+                    <div class="panel-content">
+                        <!-- Progress Bar -->
+                        <div id="progressSection" class="progress-section" style="display: none;">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
+                            <div class="progress-info">
+                                <span id="progressText">0/0</span>
+                                <span id="progressStatus">Đang xử lý...</span>
+                            </div>
+                        </div>
+
+                        <!-- Data Table -->
+                        <div class="table-container">
+                            <table id="dataTable" class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th class="col-checkbox">
+                                            <input type="checkbox" id="selectAllCheckbox">
+                                        </th>
+                                        <th class="col-ma-lk">Mã LK</th>
+                                        <th class="col-stt">STT</th>
+                                        <th class="col-ten-thuoc">Tên thuốc</th>
+                                        <th class="col-lieu-dung">Liều dùng</th>
+                                        <th class="col-cach-dung">Cách dùng</th>
+                                        <th class="col-status">Trạng thái</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dataTableBody">
+                                    <tr class="empty-row">
+                                        <td colspan="7" class="empty-state">
+                                            Nhập mã liên kết và click Search để xem dữ liệu
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Statistics -->
+                        <div class="table-footer">
+                            <div class="stats-summary">
+                                <span class="stat-item">
+                                    <span class="icon">📊</span>
+                                    Tổng: <strong id="totalCount">0</strong>
+                                </span>
+                                <span class="stat-item">
+                                    <span class="icon">☑️</span>
+                                    Đã chọn: <strong id="selectedCount">0</strong>
+                                </span>
+                                <span class="stat-item success">
+                                    <span class="icon">✅</span>
+                                    Thành công: <strong id="successCount">0</strong>
+                                </span>
+                                <span class="stat-item error">
+                                    <span class="icon">❌</span>
+                                    Lỗi: <strong id="errorCount">0</strong>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+            </div>
+
+            <!-- Tab: Danh sách bệnh nhân -->
+            <div class="tab-content" id="tab-patients" style="display: none;">
+                <div class="main-layout">
+                    <!-- Left Panel - Shared Connection Codes + Date Filter -->
+                    <aside class="left-panel">
+                        <div class="panel-header">
+                            <h3>� Mã liên kết</h3>
+                            <div class="panel-actions">
+                                <button id="searchPatientsBtn" class="btn btn-primary">
+                                    <span class="icon">�</span> Search
+                                </button>
+                            </div>
+                        </div>
+                        <div class="panel-content">
+                            <textarea 
+                                id="connectionCodesInput2" 
+                                class="codes-textarea" 
+                                placeholder="Nhập mã liên kết&#10;(mỗi mã một dòng)&#10;&#10;VD:&#10;450285&#10;450286&#10;450287"
+                                rows="12"
+                            ></textarea>
+                            <div class="input-stats">
+                                <span id="inputStats2">0 mã</span>
+                            </div>
+                            
+                            <div class="date-filters">
+                                <h4>📅 Khoảng thời gian</h4>
+                                <div class="form-group">
+                                    <label for="patientDateFrom">Từ ngày:</label>
+                                    <input 
+                                        type="text" 
+                                        id="patientDateFrom" 
+                                        class="form-input"
+                                        placeholder="01/10/2025 00:00:00"
+                                        value="01/10/2025 00:00:00"
+                                    />
+                                </div>
+                                <div class="form-group">
+                                    <label for="patientDateTo">Đến ngày:</label>
+                                    <input 
+                                        type="text" 
+                                        id="patientDateTo" 
+                                        class="form-input"
+                                        placeholder="31/10/2025 23:59:59"
+                                        value="31/10/2025 23:59:59"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
+
+                    <!-- Right Panel - Patients Table -->
+                    <section class="right-panel">
+                        <div class="panel-header">
+                            <h3>👥 Danh sách bệnh nhân</h3>
+                            <div class="panel-actions">
+                                <button id="sendSelected130Btn" class="btn btn-success" disabled>
+                                    <span class="icon">📤</span> Gửi 130
+                                </button>
+                            </div>
+                        </div>
+                        <div class="panel-content">
+                            <!-- Progress Bar -->
+                            <div id="patientProgressSection" class="progress-section" style="display: none;">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="patientProgressFill"></div>
+                                </div>
+                                <div class="progress-info">
+                                    <span id="patientProgressText">0/0</span>
+                                    <span id="patientProgressStatus">Đang xử lý...</span>
+                                </div>
+                            </div>
+
+                            <!-- Patients Table -->
+                            <div class="table-container">
+                                <table id="patientsTable" class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="col-checkbox">
+                                                <input type="checkbox" id="selectAllPatientsCheckbox">
+                                            </th>
+                                            <th class="col-ma-lk">Mã LK</th>
+                                            <th class="col-ma-bn">Mã BN</th>
+                                            <th class="col-ho-ten">Họ tên</th>
+                                            <th class="col-ngay-gui sortable" data-sort="NGAY_GUI">
+                                                Ngày gửi <span class="sort-icon">⇅</span>
+                                            </th>
+                                            <th class="col-trang-thai">Trạng thái gửi</th>
+                                            <th class="col-so-lan-gui-hs sortable" data-sort="SOLANGUI_BH_HS">
+                                                Số lần gửi HS <span class="sort-icon">⇅</span>
+                                            </th>
+                                            <th class="col-nguoi-gui">Người gửi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="patientsTableBody">
+                                        <tr class="empty-row">
+                                            <td colspan="8" class="empty-state">
+                                                Nhập mã liên kết và click Search để xem danh sách bệnh nhân
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Statistics -->
+                            <div class="table-footer">
+                                <div class="stats-summary">
+                                    <span class="stat-item">
+                                        <span class="icon">📊</span>
+                                        Tổng: <strong id="patientsTotalCount">0</strong>
+                                    </span>
+                                    <span class="stat-item">
+                                        <span class="icon">☑️</span>
+                                        Đã chọn: <strong id="patientsSelectedCount">0</strong>
+                                    </span>
+                                    <span class="stat-item warning">
+                                        <span class="icon">⚠️</span>
+                                        Cần xem lại: <strong id="patientsWarningCount">0</strong>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="update-footer">
+            <div class="footer-info">
+                <span>BHYT XML130 Updater v1.0</span>
+                <span class="separator">|</span>
+                <span id="lastUpdate">Cập nhật lần cuối: Chưa có</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Notification System -->
+    <div id="notificationContainer" class="notification-container"></div>
+
+    <!-- Modal for Not Found Codes -->
+    <div id="notFoundModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚠️ Không tìm thấy thuốc</h3>
+                <button class="modal-close" id="closeNotFoundModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Không tìm thấy thuốc target cho các mã liên kết sau:</p>
+                <div id="notFoundCodesList" class="not-found-list"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="confirmNotFoundModal">Đã hiểu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/api-service.js"></script>
+    <script src="js/xml130-updater.js"></script>
+</body>
+</html>

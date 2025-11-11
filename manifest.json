@@ -33,7 +33,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["icons/*", "medical-dashboard.html", "js/*", "css/*"],
+      "resources": ["icons/*", "medical-dashboard.html", "bhyt-xml130-update.html", "js/*", "css/*", "data/*"],
       "matches": ["https://bvphuyen.vncare.vn/*"]
     }
   ],

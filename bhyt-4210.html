@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BHYT 4210 - Danh sách thuốc</title>
+    <link rel="stylesheet" href="css/bhyt-4210.css">
+</head>
+<body>
+    <div class="container">
+        <header class="page-header">
+            <h1>📋 Bảo Hiểm 4210 - Danh sách thuốc</h1>
+            <div class="header-actions">
+                <button id="manageMedicineDataBtn" class="btn btn-info" style="margin-right: 10px;">
+                    <span class="icon">⚙️</span> Quản lý dữ liệu thuốc
+                </button>
+                <button id="backBtn" class="btn btn-secondary">
+                    <span class="icon">←</span> Quay lại
+                </button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Filter Section -->
+            <section class="filter-section">
+                <div class="filter-group">
+                    <label for="dateFrom">Từ ngày:</label>
+                    <input 
+                        type="text" 
+                        id="dateFrom" 
+                        class="form-input"
+                        placeholder="DD/MM/YYYY HH:mm:ss"
+                        value="11/11/2025 00:00:00"
+                    />
+                </div>
+                <div class="filter-group">
+                    <label for="dateTo">Đến ngày:</label>
+                    <input 
+                        type="text" 
+                        id="dateTo" 
+                        class="form-input"
+                        placeholder="DD/MM/YYYY HH:mm:ss"
+                        value="11/11/2025 23:59:59"
+                    />
+                </div>
+                <button id="searchBtn" class="btn btn-primary">
+                    <span class="icon">🔍</span> Tìm kiếm
+                </button>
+                
+                <div class="filter-group" style="margin-left: auto;">
+                    <label>
+                        <input type="checkbox" id="showInvalidOnlyCheckbox" style="margin-right: 6px;">
+                        <span style="color: #dc2626; font-weight: 600;">🚫 Chỉ hiển thị bệnh nhân có thuốc không hợp lệ</span>
+                    </label>
+                </div>
+            </section>
+
+            <!-- Progress Section -->
+            <div id="progressSection" class="progress-section" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-info">
+                    <span id="progressText">Đang xử lý...</span>
+                    <span id="progressStatus"></span>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <section class="results-section">
+                <div class="section-header">
+                    <h3>📊 Kết quả</h3>
+                    <div class="stats">
+                        <span class="stat-item">
+                            <span class="icon">📝</span>
+                            Tổng: <strong id="totalCount">0</strong>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="resultsTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="col-stt">STT</th>
+                                <th class="col-ma-lk">Mã LK</th>
+                                <th class="col-ho-ten">Họ tên</th>
+                                <th class="col-benh-chinh">Mã bệnh chính</th>
+                                <th class="col-benh-kt">Mã bệnh KT</th>
+                                <th class="col-ma-thuoc" style="display: none;">Mã thuốc</th>
+                                <th class="col-tong-thuoc" style="text-align: center;">Tổng số thuốc</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody">
+                            <tr class="empty-row">
+                                <td colspan="7" class="empty-state">
+                                    Chọn khoảng thời gian và click Tìm kiếm để xem kết quả
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Notification System -->
+    <div id="notificationContainer" class="notification-container"></div>
+
+    <!-- Medicine Data Editor Modal -->
+    <div id="medicineDataModal" class="modal" style="display: none;">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>⚙️ Quản lý dữ liệu thuốc</h2>
+                <button class="modal-close" onclick="bhyt4210.closeMedicineDataModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="editor-toolbar">
+                    <button id="addMedicineBtn" class="btn btn-success btn-sm">
+                        <span class="icon">➕</span> Thêm thuốc
+                    </button>
+                    <button id="saveMedicineDataBtn" class="btn btn-primary btn-sm">
+                        <span class="icon">💾</span> Lưu thay đổi
+                    </button>
+                    <span class="editor-info">Tổng: <strong id="medicineCount">0</strong> thuốc</span>
+                </div>
+                <div class="table-container" style="max-height: 60vh; overflow: auto;">
+                    <table id="medicineDataTable" class="data-table editor-table">
+                        <thead style="position: sticky; top: 0; z-index: 10; background: #f8f9fa;">
+                            <tr>
+                                <th style="width: 50px;">STT</th>
+                                <th style="width: 250px;">Tên thuốc</th>
+                                <th style="width: 300px;">ICD Chỉ định</th>
+                                <th style="width: 300px;">ICD Chống chỉ định</th>
+                                <th style="width: 80px;">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="medicineDataBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/api-service.js"></script>
+    <script src="js/bhyt-4210.js"></script>
+</body>
+</html>

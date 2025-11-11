@@ -7,6 +7,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const currentDomain = document.getElementById('currentDomain');
     const lastUpdate = document.getElementById('lastUpdate');
     const openDashboardBtn = document.getElementById('openDashboardBtn');
+    const openXML130Btn = document.getElementById('openXML130Btn');
+    const open4210Btn = document.getElementById('open4210Btn');
     const refreshStatusBtn = document.getElementById('refreshStatusBtn');
     
     // Check current tab domain
@@ -63,8 +65,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.close(); // Close popup
     }
     
+    // Open XML130 update page
+    function openXML130Page() {
+        const xml130Url = chrome.runtime.getURL('bhyt-xml130-update.html');
+        chrome.tabs.create({ url: xml130Url });
+        window.close(); // Close popup
+    }
+    
+    // Open BHYT 4210 page
+    function open4210Page() {
+        const url4210 = chrome.runtime.getURL('bhyt-4210.html');
+        chrome.tabs.create({ url: url4210 });
+        window.close(); // Close popup
+    }
+    
     // Event listeners
     openDashboardBtn.addEventListener('click', openDashboard);
+    openXML130Btn.addEventListener('click', openXML130Page);
+    open4210Btn.addEventListener('click', open4210Page);
     refreshStatusBtn.addEventListener('click', () => {
         refreshStatusBtn.classList.add('loading');
         checkConnectionStatus().then(() => {

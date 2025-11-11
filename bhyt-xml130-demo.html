@@ -1,0 +1,300 @@
+<!-- 
+    Demo/Test file for XML130 Update Page
+    This file can be used for testing the UI without connecting to API
+-->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo - Cập nhật BHYT XML130</title>
+    <link rel="stylesheet" href="css/xml130-update.css">
+</head>
+<body>
+    <div class="update-container">
+        <header class="update-header">
+            <div class="header-left">
+                <h1>💊 Cập nhật Bảo hiểm XML130 (DEMO)</h1>
+            </div>
+            <div class="header-right">
+                <div class="auth-status">
+                    <span class="status-indicator connected"></span>
+                    <span class="status-text">Demo Mode</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="update-main">
+            <!-- Sample Data Section -->
+            <section class="input-section">
+                <div class="section-header">
+                    <h2>🧪 Dữ liệu mẫu để test</h2>
+                </div>
+                <div class="section-content">
+                    <div style="background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <h3 style="margin-top: 0; color: #007cba;">📝 Hướng dẫn test:</h3>
+                        <ol style="margin: 0; padding-left: 20px;">
+                            <li>Copy các mã liên kết mẫu bên dưới</li>
+                            <li>Paste vào ô textarea</li>
+                            <li>Click nút "Xử lý" để xem demo flow</li>
+                            <li>Quan sát progress bar và kết quả</li>
+                        </ol>
+                    </div>
+                    
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745;">
+                        <h4 style="margin-top: 0; color: #155724;">Mã liên kết mẫu:</h4>
+                        <pre style="background: white; padding: 10px; border-radius: 4px; overflow-x: auto;">MLC001
+MLC002
+MLC003
+MLC004
+MLC005</pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Input Section -->
+            <section class="input-section">
+                <div class="section-header">
+                    <h2>📝 Nhập danh sách Mã liên kết</h2>
+                    <div class="section-actions">
+                        <button id="loadSampleBtn" class="btn btn-secondary">
+                            <span class="icon">📋</span> Load mẫu
+                        </button>
+                        <button id="clearInputBtn" class="btn btn-secondary">
+                            <span class="icon">🗑️</span> Xóa
+                        </button>
+                        <button id="processBtn" class="btn btn-primary">
+                            <span class="icon">▶️</span> Xử lý
+                        </button>
+                    </div>
+                </div>
+                <div class="section-content">
+                    <textarea 
+                        id="connectionCodesInput" 
+                        class="input-textarea" 
+                        placeholder="Nhập danh sách Mã liên kết (mỗi mã một dòng)&#10;Ví dụ:&#10;MLC001&#10;MLC002&#10;MLC003"
+                        rows="8"
+                    ></textarea>
+                    <div class="input-info">
+                        <span id="inputStats">0 mã liên kết</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Progress Section -->
+            <section class="progress-section" id="progressSection" style="display: none;">
+                <div class="section-header">
+                    <h2>📊 Tiến trình xử lý</h2>
+                </div>
+                <div class="section-content">
+                    <div class="progress-bar-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <div class="progress-text" id="progressText">0/0</div>
+                    </div>
+                    <div class="progress-status" id="progressStatus">
+                        Đang chuẩn bị...
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section">
+                <div class="section-header">
+                    <h2>📋 Kết quả xử lý</h2>
+                    <div class="results-summary">
+                        <span class="summary-item success">
+                            <span class="icon">✅</span>
+                            <span id="successCount">0</span> thành công
+                        </span>
+                        <span class="summary-item error">
+                            <span class="icon">❌</span>
+                            <span id="errorCount">0</span> lỗi
+                        </span>
+                        <span class="summary-item info">
+                            <span class="icon">💊</span>
+                            <span id="medicineCount">0</span> thuốc đã cập nhật
+                        </span>
+                    </div>
+                </div>
+                <div class="section-content">
+                    <div id="resultsList" class="results-list">
+                        <div class="empty-state">
+                            <p>Chưa có kết quả xử lý</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="update-footer">
+            <div class="footer-info">
+                <span>BHYT XML130 Updater v1.0 (DEMO MODE)</span>
+                <span class="separator">|</span>
+                <span id="lastUpdate">Cập nhật lần cuối: Chưa có</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Notification System -->
+    <div id="notificationContainer" class="notification-container"></div>
+
+    <!-- Demo Script -->
+    <script>
+        // Demo mode - simulate processing without API calls
+        class DemoProcessor {
+            constructor() {
+                this.isProcessing = false;
+                this.stats = { total: 0, processed: 0, success: 0, error: 0, medicinesUpdated: 0 };
+                this.init();
+            }
+
+            init() {
+                document.getElementById('connectionCodesInput').addEventListener('input', () => this.updateInputStats());
+                document.getElementById('clearInputBtn').addEventListener('click', () => this.clearInput());
+                document.getElementById('loadSampleBtn').addEventListener('click', () => this.loadSample());
+                document.getElementById('processBtn').addEventListener('click', () => this.startProcessing());
+            }
+
+            updateInputStats() {
+                const textarea = document.getElementById('connectionCodesInput');
+                const text = textarea.value.trim();
+                const codes = text ? text.split('\n').filter(l => l.trim().length > 0) : [];
+                document.getElementById('inputStats').textContent = `${codes.length} mã liên kết`;
+            }
+
+            clearInput() {
+                document.getElementById('connectionCodesInput').value = '';
+                this.updateInputStats();
+                this.showNotification('🗑️ Đã xóa dữ liệu', 'info');
+            }
+
+            loadSample() {
+                const sample = 'MLC001\nMLC002\nMLC003\nMLC004\nMLC005';
+                document.getElementById('connectionCodesInput').value = sample;
+                this.updateInputStats();
+                this.showNotification('📋 Đã load dữ liệu mẫu', 'success');
+            }
+
+            async startProcessing() {
+                if (this.isProcessing) return;
+
+                const textarea = document.getElementById('connectionCodesInput');
+                const codes = textarea.value.trim().split('\n').filter(l => l.trim().length > 0);
+                
+                if (codes.length === 0) {
+                    this.showNotification('⚠️ Vui lòng nhập mã liên kết', 'warning');
+                    return;
+                }
+
+                this.isProcessing = true;
+                this.stats = { total: codes.length, processed: 0, success: 0, error: 0, medicinesUpdated: 0 };
+                
+                document.getElementById('progressSection').style.display = 'block';
+                document.getElementById('resultsList').innerHTML = '';
+                
+                this.showNotification(`🔄 Bắt đầu xử lý ${codes.length} mã (DEMO)`, 'info');
+
+                for (let i = 0; i < codes.length; i++) {
+                    await this.processCode(codes[i], i);
+                    this.stats.processed++;
+                    this.updateProgress(codes[i]);
+                }
+
+                this.isProcessing = false;
+                this.showNotification(`✅ Hoàn thành! ${this.stats.success}/${this.stats.total} thành công`, 'success');
+            }
+
+            async processCode(code, index) {
+                await this.delay(1000);
+
+                const isSuccess = Math.random() > 0.2; // 80% success rate
+                const medicineCount = isSuccess ? Math.floor(Math.random() * 3) + 1 : 0;
+
+                if (isSuccess) {
+                    this.stats.success++;
+                    this.stats.medicinesUpdated += medicineCount;
+                } else {
+                    this.stats.error++;
+                }
+
+                this.renderResult({
+                    code,
+                    success: isSuccess,
+                    patient: isSuccess ? { TENBENHNHAN: `Bệnh nhân ${index + 1}`, MABENHAN: `BN${1000 + index}` } : null,
+                    medicines: isSuccess ? this.generateMedicines(medicineCount) : [],
+                    medicinesUpdated: medicineCount,
+                    error: isSuccess ? null : 'Không tìm thấy bệnh nhân'
+                });
+            }
+
+            generateMedicines(count) {
+                const names = ['Cam thảo', 'Độc hoạt', 'Đại táo'];
+                return Array(count).fill(0).map((_, i) => ({
+                    TENTHUOC: names[i % names.length]
+                }));
+            }
+
+            updateProgress(currentCode) {
+                const pct = (this.stats.processed / this.stats.total) * 100;
+                document.getElementById('progressFill').style.width = `${pct}%`;
+                document.getElementById('progressText').textContent = `${this.stats.processed}/${this.stats.total}`;
+                document.getElementById('progressStatus').textContent = `Đã xử lý: ${this.stats.processed}/${this.stats.total} - Mã: ${currentCode}`;
+                document.getElementById('successCount').textContent = this.stats.success;
+                document.getElementById('errorCount').textContent = this.stats.error;
+                document.getElementById('medicineCount').textContent = this.stats.medicinesUpdated;
+            }
+
+            renderResult(result) {
+                const list = document.getElementById('resultsList');
+                const item = document.createElement('div');
+                item.className = `result-item ${result.success ? 'success' : 'error'}`;
+                
+                let medicinesHTML = '';
+                if (result.medicines && result.medicines.length > 0) {
+                    medicinesHTML = `<div class="result-medicines">
+                        ${result.medicines.map(m => `
+                            <div class="medicine-item">
+                                <span class="medicine-name">💊 ${m.TENTHUOC}</span>
+                                <span class="medicine-usage">Uống ngày 2 lần, sau ăn</span>
+                            </div>
+                        `).join('')}
+                    </div>`;
+                }
+
+                item.innerHTML = `
+                    <div class="result-header">
+                        <div class="result-code">🔗 ${result.code}</div>
+                        <div class="result-status ${result.success ? 'success' : 'error'}">
+                            ${result.success ? '✅ Thành công' : '❌ Lỗi'}
+                        </div>
+                    </div>
+                    ${result.patient ? `<div class="result-patient">👤 ${result.patient.TENBENHNHAN} - ${result.patient.MABENHAN}</div>` : ''}
+                    ${result.medicinesUpdated ? `<div class="result-patient">💊 Đã cập nhật: ${result.medicinesUpdated} thuốc</div>` : ''}
+                    ${medicinesHTML}
+                    ${result.error ? `<div class="result-error">❌ ${result.error}</div>` : ''}
+                `;
+                
+                list.appendChild(item);
+                item.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }
+
+            showNotification(message, type) {
+                const container = document.getElementById('notificationContainer');
+                const notif = document.createElement('div');
+                notif.className = `notification ${type}`;
+                notif.innerHTML = `<span>${message}</span><button style="background:none;border:none;font-size:18px;cursor:pointer;margin-left:10px;" onclick="this.parentElement.remove()">×</button>`;
+                container.appendChild(notif);
+                setTimeout(() => notif.remove(), 5000);
+            }
+
+            delay(ms) {
+                return new Promise(r => setTimeout(r, ms));
+            }
+        }
+
+        new DemoProcessor();
+    </script>
+</body>
+</html>
