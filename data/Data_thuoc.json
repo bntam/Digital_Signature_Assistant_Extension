@@ -741,7 +741,7 @@
   },
   {
     "ICD_CHONG_CHI_DINH": "P90",
-    "TEN_THUOC": "Cảm cúm – f",
+    "TEN_THUOC": "Cảm cúm–f",
     "ICD_CHI_DINH": "J11, U59.031, U59.041"
   },
   {
@@ -786,7 +786,7 @@
   },
   {
     "ICD_CHONG_CHI_DINH": "Z32.0, Z32.1, Z33, P90",
-    "TEN_THUOC": "Ngân kiều giải độc – F",
+    "TEN_THUOC": "Ngân kiều giải độc–F",
     "ICD_CHI_DINH": ""
   },
   {
@@ -816,7 +816,7 @@
   },
   {
     "ICD_CHONG_CHI_DINH": "Z32.0, Z32.1, Z33, P90",
-    "TEN_THUOC": "Thanh nhiệt tiêu độc – f",
+    "TEN_THUOC": "Thanh nhiệt tiêu độc–f",
     "ICD_CHI_DINH": "L28.2,L29,L50,K73.9,L23"
   },
   {
@@ -981,7 +981,7 @@
   },
   {
     "ICD_CHONG_CHI_DINH": "Z32.1; Z33; Z34; Z34.0; Z34.8; Z34.9; Z35; Z35.0; Z35.1; Z35.2; Z35.3; Z35.4; Z35.5; Z35.6; Z35.7; Z35.8; Z35.9; Z39.1; O20; O20.0; O20.8; O20.9; O21; O21.0; O21.1; O21.2; O21.8; O21.9; O22; O22.0; O22.1; O22.2; O22.3; O22.4; O22.5; O22.8; O22.9; O23; O23.0; O23.1; O23.2; O23.3; O23.4; O23.5; O23.9; O24; O24.4; O24.9; O25; O26; O26.0; O26.1; O26.2; O26.3; O26.4; O26.5; O26.6; O26.7; O26.8; O26.9; O28; O28.0; O28.1; O28.2; O28.3; O28.4; O28.5; O28.8; O28.9; O29; O29.1; O29.2; O29.3; O29.4; O29.5; O29.6; O29.8; O29.9; O30; O30.0; O30.1; O30.2; O30.8; O30.9; O31; O31.0; O31.1; O31.2; O31.8",
-    "TEN_THUOC": "Dạ dày tá tràng –f",
+    "TEN_THUOC": "Dạ dày tá tràng–f",
     "ICD_CHI_DINH": "K27, K29.5"
   },
   {
@@ -1041,7 +1041,7 @@
   },
   {
     "ICD_CHONG_CHI_DINH": "",
-    "TEN_THUOC": "Viên  bổ mắt",
+    "TEN_THUOC": "Viên bổ mắt",
     "ICD_CHI_DINH": "H54; I10"
   },
   {
@@ -1251,7 +1251,7 @@
   },
   {
     "ICD_CHONG_CHI_DINH": "Z32.0, Z32.1, Z33",
-    "TEN_THUOC": "An thần bổ tâm -F",
+    "TEN_THUOC": "An thần bổ tâm-F",
     "ICD_CHI_DINH": "G47; F48.0"
   },
   {
@@ -1291,7 +1291,7 @@
   },
   {
     "ICD_CHONG_CHI_DINH": "Z32.0, Z32.1, Z33",
-    "TEN_THUOC": "Fitôgra –F",
+    "TEN_THUOC": "Fitôgra–F",
     "ICD_CHI_DINH": "E40-E46, R53, R54, F41, F48.0, F52.0, F52.1, F52.2, F52.3, F52.4, F52.8, F52.9, M54.5, M54.6, M17"
   },
   {

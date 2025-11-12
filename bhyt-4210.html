@@ -30,7 +30,6 @@
                         id="dateFrom" 
                         class="form-input"
                         placeholder="DD/MM/YYYY HH:mm:ss"
-                        value="11/11/2025 00:00:00"
                     />
                 </div>
                 <div class="filter-group">
@@ -40,11 +39,13 @@
                         id="dateTo" 
                         class="form-input"
                         placeholder="DD/MM/YYYY HH:mm:ss"
-                        value="11/11/2025 23:59:59"
                     />
                 </div>
                 <button id="searchBtn" class="btn btn-primary">
                     <span class="icon">🔍</span> Tìm kiếm
+                </button>
+                <button id="searchAIBtn" class="btn btn-success" style="margin-left: 10px; display: none;">
+                    <span class="icon">🤖</span> Tìm kiếm AI
                 </button>
                 
                 <div class="filter-group" style="margin-left: auto;">
@@ -145,6 +146,7 @@
 
     <!-- Scripts -->
     <script src="js/api-service.js"></script>
+    <script src="js/ai-validation-service.js"></script>
     <script src="js/bhyt-4210.js"></script>
 </body>
 </html>
