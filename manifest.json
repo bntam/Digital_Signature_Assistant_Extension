@@ -9,7 +9,8 @@
     "scripting"
   ],
   "host_permissions": [
-    "https://bvphuyen.vncare.vn/*"
+    "https://bvphuyen.vncare.vn/*",
+    "https://docs.google.com/*"
   ],
   "content_scripts": [
     {

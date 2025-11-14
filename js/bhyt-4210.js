@@ -62,13 +62,83 @@ class BHYT4210 {
 
     async loadMedicineRules() {
         try {
-            const response = await fetch(chrome.runtime.getURL('data/Data_thuoc.json'));
-            this.medicineRules = await response.json();
+            // Google Sheets ID and Sheet name
+            const SHEET_ID = '1Jd55vLdLz9sd8JEYaoITRGk5K4Ahwjau';
+            const SHEET_NAME = 'Data';
+            
+            // Use Google Sheets CSV export URL
+            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}`;
+            
+            console.log('📊 Loading medicine rules from Google Sheets...');
+            const response = await fetch(url);
+            const csvText = await response.text();
+            
+            // Parse CSV to JSON
+            this.medicineRules = this.parseCSVToMedicineRules(csvText);
             console.log('📚 Loaded medicine rules:', this.medicineRules.length, 'medicines');
         } catch (error) {
-            console.error('❌ Error loading medicine rules:', error);
+            console.error('❌ Error loading medicine rules from Google Sheets:', error);
             this.medicineRules = [];
+            this.showNotification('⚠️ Không thể tải dữ liệu thuốc từ Google Sheets', 'error');
         }
+    }
+
+    parseCSVToMedicineRules(csvText) {
+        const lines = csvText.split('\n');
+        const result = [];
+        
+        // Skip header row (first line)
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            
+            // Parse CSV line (handle quoted fields)
+            const values = this.parseCSVLine(line);
+            
+            if (values.length >= 4) {
+                result.push({
+                    STT: values[0],
+                    TEN_THUOC: values[1],
+                    ICD_CHI_DINH: values[2] || '',
+                    ICD_CHONG_CHI_DINH: values[3] || ''
+                });
+            }
+        }
+        
+        return result;
+    }
+
+    parseCSVLine(line) {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            const nextChar = line[i + 1];
+            
+            if (char === '"') {
+                if (inQuotes && nextChar === '"') {
+                    // Escaped quote
+                    current += '"';
+                    i++;
+                } else {
+                    // Toggle quote state
+                    inQuotes = !inQuotes;
+                }
+            } else if (char === ',' && !inQuotes) {
+                // Field separator
+                result.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        
+        // Add last field
+        result.push(current.trim());
+        
+        return result;
     }
 
     setupEventListeners() {
@@ -93,30 +163,6 @@ class BHYT4210 {
         if (backBtn) {
             backBtn.addEventListener('click', () => {
                 window.history.back();
-            });
-        }
-
-        // Medicine Data Management button
-        const manageMedicineDataBtn = document.getElementById('manageMedicineDataBtn');
-        if (manageMedicineDataBtn) {
-            manageMedicineDataBtn.addEventListener('click', () => {
-                this.openMedicineDataModal();
-            });
-        }
-
-        // Add Medicine button
-        const addMedicineBtn = document.getElementById('addMedicineBtn');
-        if (addMedicineBtn) {
-            addMedicineBtn.addEventListener('click', () => {
-                this.addMedicine();
-            });
-        }
-
-        // Save Medicine Data button
-        const saveMedicineDataBtn = document.getElementById('saveMedicineDataBtn');
-        if (saveMedicineDataBtn) {
-            saveMedicineDataBtn.addEventListener('click', () => {
-                this.saveMedicineData();
             });
         }
 
@@ -190,24 +236,6 @@ class BHYT4210 {
                 this.sortTable(column);
             });
         });
-
-        // Modal close button
-        const modalClose = document.querySelector('.modal-close');
-        if (modalClose) {
-            modalClose.addEventListener('click', () => {
-                this.closeMedicineDataModal();
-            });
-        }
-
-        // Close modal when clicking outside
-        const modal = document.getElementById('medicineDataModal');
-        if (modal) {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    this.closeMedicineDataModal();
-                }
-            });
-        }
 
         // Enter key on inputs
         ['dateFrom', 'dateTo'].forEach(id => {
@@ -2290,126 +2318,7 @@ class BHYT4210 {
         }
     }
 
-    // Modal Management Functions
-    openMedicineDataModal() {
-        const modal = document.getElementById('medicineDataModal');
-        modal.style.display = 'flex';
-        this.renderMedicineDataTable();
-    }
 
-    closeMedicineDataModal() {
-        const modal = document.getElementById('medicineDataModal');
-        modal.style.display = 'none';
-    }
-
-    renderMedicineDataTable() {
-        const tbody = document.getElementById('medicineDataBody');
-        tbody.innerHTML = '';
-        
-        this.medicineRules.forEach((medicine, index) => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td style="text-align: center;">${index + 1}</td>
-                <td>
-                    <input type="text" 
-                           value="${this.escapeHtml(medicine.TEN_THUOC)}" 
-                           data-field="TEN_THUOC" 
-                           data-index="${index}"
-                           placeholder="Tên thuốc...">
-                </td>
-                <td>
-                    <textarea data-field="ICD_CHI_DINH" 
-                              data-index="${index}"
-                              placeholder="Ví dụ: I10, I15; I20.0"
-                              rows="2">${this.escapeHtml(medicine.ICD_CHI_DINH || '')}</textarea>
-                </td>
-                <td>
-                    <textarea data-field="ICD_CHONG_CHI_DINH" 
-                              data-index="${index}"
-                              placeholder="Ví dụ: I45, I45.8"
-                              rows="2">${this.escapeHtml(medicine.ICD_CHONG_CHI_DINH || '')}</textarea>
-                </td>
-                <td style="text-align: center;">
-                    <button class="btn btn-danger btn-sm delete-medicine-btn" 
-                            data-index="${index}"
-                            title="Xóa">
-                        🗑️
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(row);
-            
-            // Add event listener for delete button
-            const deleteBtn = row.querySelector('.delete-medicine-btn');
-            deleteBtn.addEventListener('click', () => {
-                this.deleteMedicine(index);
-            });
-        });
-        
-        // Update count
-        document.getElementById('medicineCount').textContent = this.medicineRules.length;
-    }
-
-    addMedicine() {
-        this.medicineRules.push({
-            TEN_THUOC: '',
-            ICD_CHI_DINH: '',
-            ICD_CHONG_CHI_DINH: ''
-        });
-        this.renderMedicineDataTable();
-        this.showNotification('✅ Đã thêm thuốc mới', 'success');
-        
-        // Scroll to bottom to show new row
-        const tbody = document.getElementById('medicineDataBody');
-        setTimeout(() => {
-            tbody.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 100);
-    }
-
-    deleteMedicine(index) {
-        const medicine = this.medicineRules[index];
-        if (confirm(`Xác nhận xóa thuốc "${medicine.TEN_THUOC}"?`)) {
-            this.medicineRules.splice(index, 1);
-            this.renderMedicineDataTable();
-            this.showNotification('🗑️ Đã xóa thuốc', 'warning');
-        }
-    }
-
-    saveMedicineData() {
-        try {
-            // Collect all changes from inputs
-            const inputs = document.querySelectorAll('#medicineDataBody input, #medicineDataBody textarea');
-            inputs.forEach(input => {
-                const index = parseInt(input.dataset.index);
-                const field = input.dataset.field;
-                if (this.medicineRules[index]) {
-                    this.medicineRules[index][field] = input.value.trim();
-                }
-            });
-
-            // Convert to JSON
-            const jsonData = JSON.stringify(this.medicineRules, null, 2);
-            
-            // Create download link
-            const blob = new Blob([jsonData], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'Data_thuoc.json';
-            a.click();
-            URL.revokeObjectURL(url);
-
-            this.showNotification('💾 Đã lưu thay đổi. File đã được tải xuống!', 'success');
-            
-            // Optionally close modal
-            setTimeout(() => {
-                this.closeMedicineDataModal();
-            }, 1500);
-        } catch (error) {
-            console.error('Error saving medicine data:', error);
-            this.showNotification('❌ Lỗi khi lưu dữ liệu', 'error');
-        }
-    }
 
     showNotification(message, type = 'info') {
         const container = document.getElementById('notificationContainer');

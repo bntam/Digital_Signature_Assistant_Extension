@@ -11,9 +11,12 @@
         <header class="page-header">
             <h1>📋 Bảo Hiểm 4210 - Danh sách thuốc</h1>
             <div class="header-actions">
-                <button id="manageMedicineDataBtn" class="btn btn-info" style="margin-right: 10px;">
-                    <span class="icon">⚙️</span> Quản lý dữ liệu thuốc
-                </button>
+                <a href="https://docs.google.com/spreadsheets/d/1Jd55vLdLz9sd8JEYaoITRGk5K4Ahwjau/edit?usp=sharing" 
+                   target="_blank" 
+                   class="btn btn-info" 
+                   style="margin-right: 10px; text-decoration: none;">
+                    <span class="icon">📊</span> Cập nhật dữ liệu thuốc
+                </a>
                 <button id="backBtn" class="btn btn-secondary">
                     <span class="icon">←</span> Quay lại
                 </button>
@@ -205,41 +208,6 @@
     <div id="notificationContainer" class="notification-container"></div>
 
     <!-- Medicine Data Editor Modal -->
-    <div id="medicineDataModal" class="modal" style="display: none;">
-        <div class="modal-content modal-large">
-            <div class="modal-header">
-                <h2>⚙️ Quản lý dữ liệu thuốc</h2>
-                <button class="modal-close" onclick="bhyt4210.closeMedicineDataModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="editor-toolbar">
-                    <button id="addMedicineBtn" class="btn btn-success btn-sm">
-                        <span class="icon">➕</span> Thêm thuốc
-                    </button>
-                    <button id="saveMedicineDataBtn" class="btn btn-primary btn-sm">
-                        <span class="icon">💾</span> Lưu thay đổi
-                    </button>
-                    <span class="editor-info">Tổng: <strong id="medicineCount">0</strong> thuốc</span>
-                </div>
-                <div class="table-container" style="max-height: 60vh; overflow: auto;">
-                    <table id="medicineDataTable" class="data-table editor-table">
-                        <thead style="position: sticky; top: 0; z-index: 10; background: #f8f9fa;">
-                            <tr>
-                                <th style="width: 50px;">STT</th>
-                                <th style="width: 250px;">Tên thuốc</th>
-                                <th style="width: 300px;">ICD Chỉ định</th>
-                                <th style="width: 300px;">ICD Chống chỉ định</th>
-                                <th style="width: 80px;">Thao tác</th>
-                            </tr>
-                        </thead>
-                        <tbody id="medicineDataBody">
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Scripts -->
     <script src="js/api-service.js"></script>
     <script src="js/ai-validation-service.js"></script>
