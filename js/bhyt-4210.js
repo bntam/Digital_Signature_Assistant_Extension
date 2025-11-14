@@ -120,13 +120,76 @@ class BHYT4210 {
             });
         }
 
-        // Filter checkbox for invalid medicines only
-        const showInvalidOnlyCheckbox = document.getElementById('showInvalidOnlyCheckbox');
-        if (showInvalidOnlyCheckbox) {
-            showInvalidOnlyCheckbox.addEventListener('change', (e) => {
-                this.filterInvalidOnly(e.target.checked);
+        // Expand All button
+        const expandAllBtn = document.getElementById('expandAllBtn');
+        if (expandAllBtn) {
+            expandAllBtn.addEventListener('click', () => {
+                this.expandAll();
             });
         }
+
+        // Collapse All button
+        const collapseAllBtn = document.getElementById('collapseAllBtn');
+        if (collapseAllBtn) {
+            collapseAllBtn.addEventListener('click', () => {
+                this.collapseAll();
+            });
+        }
+
+        // Filter inputs
+        const filterMaLKInput = document.getElementById('filterMaLKInput');
+        const filterHoTenInput = document.getElementById('filterHoTenInput');
+        const filterMaBenhInput = document.getElementById('filterMaBenhInput');
+        if (filterMaLKInput) {
+            filterMaLKInput.addEventListener('input', () => {
+                this.applyFilters();
+            });
+        }
+        if (filterHoTenInput) {
+            filterHoTenInput.addEventListener('input', () => {
+                this.applyFilters();
+            });
+        }
+        if (filterMaBenhInput) {
+            filterMaBenhInput.addEventListener('input', () => {
+                this.applyFilters();
+            });
+        }
+        
+        // Multi-select dropdown for MA_BAC_SI
+        this.initMaBacSiMultiSelect();
+
+        // Clear filter button
+        const clearFilterBtn = document.getElementById('clearFilterBtn');
+        if (clearFilterBtn) {
+            clearFilterBtn.addEventListener('click', () => {
+                this.clearFilters();
+            });
+        }
+
+        // Checkbox filters
+        const showInvalidOnlyCheckbox = document.getElementById('showInvalidOnlyCheckbox');
+        const hideNotFoundMedicinesCheckbox = document.getElementById('hideNotFoundMedicinesCheckbox');
+        
+        if (showInvalidOnlyCheckbox) {
+            showInvalidOnlyCheckbox.addEventListener('change', () => {
+                this.applyFilters();
+            });
+        }
+        
+        if (hideNotFoundMedicinesCheckbox) {
+            hideNotFoundMedicinesCheckbox.addEventListener('change', () => {
+                this.applyFilters();
+            });
+        }
+
+        // Sortable column headers
+        document.querySelectorAll('.data-table th.sortable').forEach(th => {
+            th.addEventListener('click', () => {
+                const column = th.dataset.column;
+                this.sortTable(column);
+            });
+        });
 
         // Modal close button
         const modalClose = document.querySelector('.modal-close');
@@ -596,7 +659,8 @@ class BHYT4210 {
                 TEN_THUOC: xml2Item.TEN_THUOC || '',
                 HO_TEN: xml2Item.HO_TEN || '',
                 MA_BENH_CHINH: xml1Item.MA_BENH_CHINH || '',
-                MA_BENH_KT: xml1Item.MA_BENH_KT || ''
+                MA_BENH_KT: xml1Item.MA_BENH_KT || '',
+                MA_BAC_SI: xml2Item.MA_BAC_SI || ''
             };
         });
 
@@ -671,14 +735,32 @@ class BHYT4210 {
             const parentRow = document.createElement('tr');
             parentRow.className = 'parent-row';
             parentRow.dataset.groupId = groupId;
+            // Add data attributes for filtering and sorting
+            parentRow.dataset.maLk = group.MA_LK || '';
+            parentRow.dataset.hoTen = group.HO_TEN || '';
+            parentRow.dataset.totalMedicines = group.medicines.length;
+            parentRow.dataset.maBenhChinh = group.MA_BENH_CHINH || '';
+            parentRow.dataset.maBenhKt = group.MA_BENH_KT || '';
+            parentRow.dataset.maBacSi = group.MA_BAC_SI || '';
+            parentRow.dataset.hasInvalidMedicines = hasInvalidMedicines ? 'true' : 'false';
             
-            // Add warning/error class if has invalid medicines
+            // Count medicines not found in database
+            const notFoundCount = group.medicines.filter(med => !med.validation || !med.validation.found).length;
+            parentRow.dataset.hasNotFoundMedicines = notFoundCount > 0 ? 'true' : 'false';
+            
+            // Add warning/error/success class based on medicine validation
+            // Only add success (green) if ALL medicines are found AND valid
+            const allMedicinesValid = notFoundCount === 0 && !hasInvalidMedicines;
+            
             if (hasInvalidMedicines) {
                 if (hasContraindication) {
                     parentRow.classList.add('parent-row-error'); // Red for contraindication
                 } else {
                     parentRow.classList.add('parent-row-warning'); // Yellow for wrong indication
                 }
+            } else if (allMedicinesValid) {
+                // All medicines are found AND valid - add green highlight
+                parentRow.classList.add('parent-row-success');
             }
             
             // Build medicine count badge with warning indicator
@@ -702,6 +784,7 @@ class BHYT4210 {
                 <td class="col-ho-ten" title="${this.escapeHtml(group.HO_TEN)}">${this.escapeHtml(group.HO_TEN)}</td>
                 <td class="col-benh-chinh" title="${this.escapeHtml(group.MA_BENH_CHINH)}">${this.escapeHtml(group.MA_BENH_CHINH)}</td>
                 <td class="col-benh-kt" title="${this.escapeHtml(group.MA_BENH_KT)}">${this.escapeHtml(group.MA_BENH_KT)}</td>
+                <td class="col-ma-bac-si" title="${this.escapeHtml(group.MA_BAC_SI)}">${this.escapeHtml(group.MA_BAC_SI)}</td>
                 <td class="col-tong-thuoc">
                     ${medicineCountHtml}
                 </td>
@@ -728,13 +811,16 @@ class BHYT4210 {
                 childRow.className = 'child-row';
                 childRow.dataset.groupId = groupId;
                 childRow.style.display = 'none';
+                // Track if medicine is not found in database
+                const isNotFound = !medicine.validation || !medicine.validation.found;
+                childRow.dataset.medicineNotFound = isNotFound ? 'true' : 'false';
                 childRow.innerHTML = `
                     <td class="col-stt" style="padding-left: 40px; color: #999;">${medIndex + 1}</td>
                     <td class="col-ma-thuoc" style="color: #667eea; font-weight: 500;" title="${this.escapeHtml(medicine.MA_THUOC)}">
                         ${this.escapeHtml(medicine.MA_THUOC)}
                     </td>
                     <td class="col-ten-thuoc" title="${this.escapeHtml(medicine.TEN_THUOC)}">${this.escapeHtml(medicine.TEN_THUOC)}</td>
-                    <td colspan="3">${this.renderValidation(medicine.validation, patientICDs)}</td>
+                    <td colspan="4">${this.renderValidation(medicine.validation, patientICDs)}</td>
                 `;
                 tbody.appendChild(childRow);
             });
@@ -812,6 +898,7 @@ class BHYT4210 {
                     HO_TEN: item.HO_TEN,
                     MA_BENH_CHINH: item.MA_BENH_CHINH,
                     MA_BENH_KT: item.MA_BENH_KT,
+                    MA_BAC_SI: item.MA_BAC_SI,
                     medicines: [],
                     validating: true // Mark as validating
                 });
@@ -859,6 +946,7 @@ class BHYT4210 {
                     HO_TEN: item.HO_TEN,
                     MA_BENH_CHINH: item.MA_BENH_CHINH,
                     MA_BENH_KT: item.MA_BENH_KT,
+                    MA_BAC_SI: item.MA_BAC_SI,
                     medicines: []
                 });
             }
@@ -1097,14 +1185,23 @@ class BHYT4210 {
             med.validation && med.validation.hasContraindication
         );
 
+        // Check if all medicines are found
+        const allMedicinesFound = group.medicines.every(med => 
+            med.validation && med.validation.found
+        );
+        const allMedicinesValid = allMedicinesFound && !hasInvalidMedicines;
+
         // Update parent row styling
-        parentRow.classList.remove('parent-row-error', 'parent-row-warning');
+        parentRow.classList.remove('parent-row-error', 'parent-row-warning', 'parent-row-success');
         if (hasInvalidMedicines) {
             if (hasContraindication) {
                 parentRow.classList.add('parent-row-error');
             } else {
                 parentRow.classList.add('parent-row-warning');
             }
+        } else if (allMedicinesValid) {
+            // All medicines are found AND valid - add green highlight
+            parentRow.classList.add('parent-row-success');
         }
 
         // Update medicine count badge
@@ -1199,6 +1296,7 @@ class BHYT4210 {
                     HO_TEN: item.HO_TEN,
                     MA_BENH_CHINH: item.MA_BENH_CHINH,
                     MA_BENH_KT: item.MA_BENH_KT,
+                    MA_BAC_SI: item.MA_BAC_SI,
                     medicines: []
                 });
             }
@@ -1959,6 +2057,7 @@ class BHYT4210 {
         if (!parentRow) return;
 
         const isExpanded = parentRow.classList.contains('expanded');
+        const hideNotFoundMedicines = document.getElementById('hideNotFoundMedicinesCheckbox')?.checked || false;
 
         if (isExpanded) {
             // Collapse
@@ -1966,8 +2065,15 @@ class BHYT4210 {
             expandIcon.textContent = '▶';
             parentRow.classList.remove('expanded');
         } else {
-            // Expand
-            childRows.forEach(row => row.style.display = '');
+            // Expand - respect hideNotFoundMedicines filter
+            childRows.forEach(row => {
+                if (hideNotFoundMedicines) {
+                    const isNotFound = row.dataset.medicineNotFound === 'true';
+                    row.style.display = isNotFound ? 'none' : '';
+                } else {
+                    row.style.display = '';
+                }
+            });
             expandIcon.textContent = '▼';
             parentRow.classList.add('expanded');
         }
@@ -1978,7 +2084,7 @@ class BHYT4210 {
         if (tbody) {
             tbody.innerHTML = `
                 <tr class="empty-row">
-                    <td colspan="7" class="empty-state">
+                    <td colspan="8" class="empty-state">
                         Không tìm thấy dữ liệu
                     </td>
                 </tr>
@@ -2333,6 +2439,439 @@ class BHYT4210 {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    // ==================== TABLE CONTROLS ====================
+
+    /**
+     * Expand all patient groups
+     */
+    expandAll() {
+        const hideNotFoundMedicines = document.getElementById('hideNotFoundMedicinesCheckbox')?.checked || false;
+        const parentRows = document.querySelectorAll('.parent-row');
+        parentRows.forEach(row => {
+            const groupId = row.dataset.groupId;
+            const childRows = document.querySelectorAll(`.child-row[data-group-id="${groupId}"]`);
+            const expandIcon = row.querySelector('.expand-icon');
+            
+            if (expandIcon && !row.classList.contains('expanded')) {
+                // Respect hideNotFoundMedicines filter
+                childRows.forEach(childRow => {
+                    if (hideNotFoundMedicines) {
+                        const isNotFound = childRow.dataset.medicineNotFound === 'true';
+                        childRow.style.display = isNotFound ? 'none' : '';
+                    } else {
+                        childRow.style.display = '';
+                    }
+                });
+                expandIcon.textContent = '▼';
+                row.classList.add('expanded');
+            }
+        });
+        this.showNotification('📂 Đã mở rộng tất cả', 'info');
+    }
+
+    /**
+     * Collapse all patient groups
+     */
+    collapseAll() {
+        const parentRows = document.querySelectorAll('.parent-row');
+        parentRows.forEach(row => {
+            const groupId = row.dataset.groupId;
+            const childRows = document.querySelectorAll(`.child-row[data-group-id="${groupId}"]`);
+            const expandIcon = row.querySelector('.expand-icon');
+            
+            if (expandIcon && row.classList.contains('expanded')) {
+                childRows.forEach(childRow => childRow.style.display = 'none');
+                expandIcon.textContent = '▶';
+                row.classList.remove('expanded');
+            }
+        });
+        this.showNotification('📁 Đã thu gọn tất cả', 'info');
+    }
+
+    /**
+     * Initialize multi-select dropdown for MA_BAC_SI
+     */
+    initMaBacSiMultiSelect() {
+        const multiSelectInput = document.getElementById('maBacSiMultiSelect');
+        const dropdown = document.getElementById('maBacSiDropdown');
+        const customInput = document.getElementById('customMaBacSiInput');
+        const checkboxes = dropdown.querySelectorAll('.multi-select-option input[type="checkbox"]');
+        
+        this.selectedMaBacSi = new Set();
+        
+        // Toggle dropdown
+        multiSelectInput.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = dropdown.style.display === 'block';
+            dropdown.style.display = isOpen ? 'none' : 'block';
+            multiSelectInput.classList.toggle('open', !isOpen);
+            if (!isOpen) {
+                customInput.focus();
+            }
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!multiSelectInput.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.style.display = 'none';
+                multiSelectInput.classList.remove('open');
+            }
+        });
+        
+        // Handle checkbox changes
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                if (checkbox.checked) {
+                    this.selectedMaBacSi.add(checkbox.value);
+                } else {
+                    this.selectedMaBacSi.delete(checkbox.value);
+                }
+                this.updateMaBacSiDisplay();
+                this.applyFilters();
+            });
+        });
+        
+        // Prevent dropdown close when clicking inside
+        dropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+        
+        // Handle custom doctor code input
+        const addCustomBtn = document.getElementById('addCustomMaBacSiBtn');
+        
+        const addCustomCode = () => {
+            const customCode = customInput.value.trim();
+            if (customCode) {
+                // Add to selected set
+                this.selectedMaBacSi.add(customCode);
+                
+                // Create a temporary checkbox option for this custom code
+                const optionsContainer = dropdown.querySelector('.multi-select-options');
+                const customOption = document.createElement('label');
+                customOption.className = 'multi-select-option custom-option';
+                customOption.innerHTML = `
+                    <input type="checkbox" value="${customCode}" data-name="${customCode}" checked />
+                    <span>${customCode}</span>
+                `;
+                
+                // Append to options container
+                optionsContainer.appendChild(customOption);
+                
+                // Add event listener to the new checkbox
+                const newCheckbox = customOption.querySelector('input');
+                newCheckbox.addEventListener('change', () => {
+                    if (newCheckbox.checked) {
+                        this.selectedMaBacSi.add(newCheckbox.value);
+                    } else {
+                        this.selectedMaBacSi.delete(newCheckbox.value);
+                        // Remove the custom option when unchecked
+                        customOption.remove();
+                    }
+                    this.updateMaBacSiDisplay();
+                    this.applyFilters();
+                });
+                
+                // Update display and clear input
+                this.updateMaBacSiDisplay();
+                this.applyFilters();
+                customInput.value = '';
+            }
+        };
+        
+        addCustomBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            addCustomCode();
+        });
+        
+        customInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                addCustomCode();
+            }
+        });
+    }
+    
+    /**
+     * Update multi-select display
+     */
+    updateMaBacSiDisplay() {
+        const multiSelectInput = document.getElementById('maBacSiMultiSelect');
+        const placeholder = multiSelectInput.querySelector('.placeholder');
+        const dropdown = document.getElementById('maBacSiDropdown');
+        
+        // Clear existing tags
+        const existingTags = multiSelectInput.querySelectorAll('.multi-select-tag');
+        existingTags.forEach(tag => tag.remove());
+        
+        if (this.selectedMaBacSi.size === 0) {
+            placeholder.style.display = '';
+            return;
+        }
+        
+        placeholder.style.display = 'none';
+        
+        // Create selected items container if doesn't exist
+        let selectedContainer = multiSelectInput.querySelector('.selected-items');
+        if (!selectedContainer) {
+            selectedContainer = document.createElement('div');
+            selectedContainer.className = 'selected-items';
+            multiSelectInput.insertBefore(selectedContainer, multiSelectInput.querySelector('.arrow'));
+        }
+        
+        // Add tags for selected items
+        this.selectedMaBacSi.forEach(value => {
+            const checkbox = dropdown.querySelector(`input[value="${value}"]`);
+            const name = checkbox?.dataset.name || value;
+            
+            const tag = document.createElement('span');
+            tag.className = 'multi-select-tag';
+            tag.innerHTML = `
+                ${name}
+                <span class="remove" data-value="${value}">×</span>
+            `;
+            
+            // Remove tag on click
+            const removeBtn = tag.querySelector('.remove');
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.selectedMaBacSi.delete(value);
+                checkbox.checked = false;
+                this.updateMaBacSiDisplay();
+                this.applyFilters();
+            });
+            
+            selectedContainer.appendChild(tag);
+        });
+    }
+
+    /**
+     * Apply filters based on input values
+     */
+    applyFilters() {
+        const filterMaLK = document.getElementById('filterMaLKInput').value.toLowerCase().trim();
+        const filterHoTen = document.getElementById('filterHoTenInput').value.toLowerCase().trim();
+        const filterMaBenh = document.getElementById('filterMaBenhInput').value.toLowerCase().trim();
+        
+        // Checkbox filters
+        const showInvalidOnly = document.getElementById('showInvalidOnlyCheckbox')?.checked || false;
+        const hideNotFoundMedicines = document.getElementById('hideNotFoundMedicinesCheckbox')?.checked || false;
+        
+        const parentRows = document.querySelectorAll('.parent-row');
+        let visibleCount = 0;
+        
+        parentRows.forEach(row => {
+            const maLK = row.dataset.maLk?.toLowerCase() || '';
+            const hoTen = row.dataset.hoTen?.toLowerCase() || '';
+            const maBenhChinh = row.dataset.maBenhChinh?.toLowerCase() || '';
+            const maBenhKt = row.dataset.maBenhKt?.toLowerCase() || '';
+            const maBacSi = row.dataset.maBacSi?.toLowerCase() || '';
+            const hasInvalidMedicines = row.dataset.hasInvalidMedicines === 'true';
+            
+            // Text filters
+            const matchMaLK = !filterMaLK || maLK.includes(filterMaLK);
+            const matchHoTen = !filterHoTen || hoTen.includes(filterHoTen);
+            const matchMaBenh = !filterMaBenh || maBenhChinh.includes(filterMaBenh) || maBenhKt.includes(filterMaBenh);
+            
+            // Multi-select MA_BAC_SI filter
+            const matchMaBacSi = !this.selectedMaBacSi || this.selectedMaBacSi.size === 0 || 
+                                 this.selectedMaBacSi.has(maBacSi) || 
+                                 Array.from(this.selectedMaBacSi).some(selected => maBacSi.includes(selected.toLowerCase()));
+            
+            // Checkbox filters
+            const matchInvalidOnly = !showInvalidOnly || hasInvalidMedicines;
+            
+            // Check if patient should be hidden when hideNotFoundMedicines is enabled
+            let matchNotFoundFilter = true;
+            if (hideNotFoundMedicines) {
+                const groupId = row.dataset.groupId;
+                const childRows = document.querySelectorAll(`.child-row[data-group-id="${groupId}"]`);
+                // Only hide patient if ALL medicines are not found
+                const hasAtLeastOneFoundMedicine = Array.from(childRows).some(childRow => 
+                    childRow.dataset.medicineNotFound !== 'true'
+                );
+                matchNotFoundFilter = hasAtLeastOneFoundMedicine;
+            }
+            
+            // Combine all filters (AND logic)
+            const shouldShow = matchMaLK && matchHoTen && matchMaBenh && matchMaBacSi && matchInvalidOnly && matchNotFoundFilter;
+            
+            if (shouldShow) {
+                row.style.display = '';
+                // Handle child rows visibility based on hideNotFoundMedicines
+                const groupId = row.dataset.groupId;
+                if (row.classList.contains('expanded')) {
+                    const childRows = document.querySelectorAll(`.child-row[data-group-id="${groupId}"]`);
+                    childRows.forEach(childRow => {
+                        if (hideNotFoundMedicines) {
+                            // Hide individual medicines that are not found
+                            const isNotFound = childRow.dataset.medicineNotFound === 'true';
+                            childRow.style.display = isNotFound ? 'none' : '';
+                        } else {
+                            childRow.style.display = '';
+                        }
+                    });
+                }
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+                // Hide child rows too
+                const groupId = row.dataset.groupId;
+                const childRows = document.querySelectorAll(`.child-row[data-group-id="${groupId}"]`);
+                childRows.forEach(childRow => childRow.style.display = 'none');
+            }
+        });
+        
+        // Update count display
+        const totalCount = document.getElementById('totalCount');
+        if (totalCount) {
+            totalCount.textContent = visibleCount;
+        }
+    }
+
+    /**
+     * Clear all filters
+     */
+    clearFilters() {
+        document.getElementById('filterMaLKInput').value = '';
+        document.getElementById('filterHoTenInput').value = '';
+        document.getElementById('filterMaBenhInput').value = '';
+        
+        // Clear multi-select MA_BAC_SI
+        this.selectedMaBacSi.clear();
+        const checkboxes = document.querySelectorAll('#maBacSiDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
+        this.updateMaBacSiDisplay();
+        
+        // Clear search input
+        const searchInput = document.getElementById('maBacSiSearchInput');
+        if (searchInput) searchInput.value = '';
+        
+        // Uncheck checkboxes
+        const showInvalidOnlyCheckbox = document.getElementById('showInvalidOnlyCheckbox');
+        const hideNotFoundMedicinesCheckbox = document.getElementById('hideNotFoundMedicinesCheckbox');
+        if (showInvalidOnlyCheckbox) showInvalidOnlyCheckbox.checked = false;
+        if (hideNotFoundMedicinesCheckbox) hideNotFoundMedicinesCheckbox.checked = false;
+        
+        // Show all rows
+        const parentRows = document.querySelectorAll('.parent-row');
+        parentRows.forEach(row => {
+            row.style.display = '';
+        });
+        
+        // Show all child rows if parent is expanded
+        document.querySelectorAll('.parent-row.expanded').forEach(parentRow => {
+            const groupId = parentRow.dataset.groupId;
+            const childRows = document.querySelectorAll(`.child-row[data-group-id="${groupId}"]`);
+            childRows.forEach(childRow => childRow.style.display = '');
+        });
+        
+        // Restore count
+        const totalCount = document.getElementById('totalCount');
+        if (totalCount) {
+            totalCount.textContent = parentRows.length;
+        }
+        
+        this.showNotification('✖️ Đã xóa bộ lọc', 'info');
+    }
+
+    /**
+     * Sort table by column
+     */
+    sortTable(column) {
+        const th = document.querySelector(`th[data-column="${column}"]`);
+        if (!th) return;
+        
+        // Determine sort direction
+        let direction = 'asc';
+        if (th.classList.contains('sort-asc')) {
+            direction = 'desc';
+        }
+        
+        // Remove sort classes from all headers
+        document.querySelectorAll('th.sortable').forEach(header => {
+            header.classList.remove('sort-asc', 'sort-desc');
+        });
+        
+        // Add sort class to current header
+        th.classList.add(`sort-${direction}`);
+        
+        // Get all parent rows
+        const tbody = document.getElementById('resultsTableBody');
+        const rows = Array.from(tbody.querySelectorAll('.parent-row'));
+        
+        // Sort rows
+        rows.sort((a, b) => {
+            let aVal, bVal;
+            
+            switch(column) {
+                case 'MA_LK':
+                    aVal = a.dataset.maLk || '';
+                    bVal = b.dataset.maLk || '';
+                    break;
+                case 'HO_TEN':
+                    aVal = a.dataset.hoTen || '';
+                    bVal = b.dataset.hoTen || '';
+                    break;
+                case 'MA_BAC_SI':
+                    aVal = a.dataset.maBacSi || '';
+                    bVal = b.dataset.maBacSi || '';
+                    break;
+                case 'TOTAL_MEDICINES':
+                    aVal = parseInt(a.dataset.totalMedicines) || 0;
+                    bVal = parseInt(b.dataset.totalMedicines) || 0;
+                    break;
+                default:
+                    return 0;
+            }
+            
+            // Compare
+            if (typeof aVal === 'number') {
+                return direction === 'asc' ? aVal - bVal : bVal - aVal;
+            } else {
+                return direction === 'asc' 
+                    ? aVal.localeCompare(bVal, 'vi')
+                    : bVal.localeCompare(aVal, 'vi');
+            }
+        });
+        
+        // Re-append rows with their children
+        rows.forEach(parentRow => {
+            const groupId = parentRow.dataset.groupId;
+            const childRows = Array.from(tbody.querySelectorAll(`.child-row[data-group-id="${groupId}"]`));
+            
+            tbody.appendChild(parentRow);
+            childRows.forEach(childRow => {
+                tbody.appendChild(childRow);
+            });
+        });
+        
+        // Update STT (row numbers)
+        this.updateRowNumbers();
+        
+        this.showNotification(`🔄 Đã sắp xếp theo ${column} (${direction === 'asc' ? 'tăng dần' : 'giảm dần'})`, 'info');
+    }
+
+    /**
+     * Update row numbers after sorting
+     */
+    updateRowNumbers() {
+        const parentRows = document.querySelectorAll('.parent-row');
+        parentRows.forEach((row, index) => {
+            const sttCell = row.querySelector('td:first-child');
+            if (sttCell) {
+                const expandIcon = sttCell.querySelector('.expand-icon');
+                if (expandIcon) {
+                    // Keep the expand icon and update number
+                    const iconHtml = expandIcon.outerHTML;
+                    sttCell.innerHTML = `${iconHtml} ${index + 1}`;
+                } else {
+                    sttCell.textContent = index + 1;
+                }
+            }
+        });
     }
 }
 

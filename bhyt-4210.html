@@ -47,13 +47,6 @@
                 <button id="searchAIBtn" class="btn btn-success" style="margin-left: 10px; display: none;">
                     <span class="icon">🤖</span> Tìm kiếm AI
                 </button>
-                
-                <div class="filter-group" style="margin-left: auto;">
-                    <label>
-                        <input type="checkbox" id="showInvalidOnlyCheckbox" style="margin-right: 6px;">
-                        <span style="color: #dc2626; font-weight: 600;">🚫 Chỉ hiển thị bệnh nhân có thuốc không hợp lệ</span>
-                    </label>
-                </div>
             </section>
 
             <!-- Progress Section -->
@@ -79,22 +72,125 @@
                     </div>
                 </div>
 
+                <!-- Table Controls -->
+                <div class="table-controls-wrapper">
+                    <!-- First Row: Action Buttons and Filters -->
+                    <div class="controls-row">
+                        <div class="button-group">
+                            <button id="expandAllBtn" class="btn btn-secondary btn-sm btn-icon-only" title="Mở rộng tất cả">
+                                <span class="icon">📂</span>
+                            </button>
+                            <button id="collapseAllBtn" class="btn btn-secondary btn-sm btn-icon-only" title="Thu gọn tất cả">
+                                <span class="icon">📁</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Filter Inputs -->
+                        <div class="filter-inputs-group">
+                            <input 
+                                type="text" 
+                                id="filterMaLKInput" 
+                                placeholder="Mã LK..."
+                                class="filter-input-sm"
+                            />
+                            <input 
+                                type="text" 
+                                id="filterHoTenInput" 
+                                placeholder="Họ tên..."
+                                class="filter-input-sm"
+                            />
+                            <input 
+                                type="text" 
+                                id="filterMaBenhInput" 
+                                placeholder="Mã bệnh..."
+                                class="filter-input-sm"
+                            />
+                            <div class="multi-select-wrapper">
+                                <div class="multi-select-input" id="maBacSiMultiSelect" tabindex="0">
+                                    <span class="placeholder">Chọn bác sĩ...</span>
+                                    <span class="arrow">▼</span>
+                                </div>
+                                <div class="multi-select-dropdown" id="maBacSiDropdown" style="display: none;">
+                                    <div class="multi-select-search">
+                                        <input type="text" id="customMaBacSiInput" placeholder="Nhập mã bác sĩ..." />
+                                        <button id="addCustomMaBacSiBtn" class="btn btn-sm btn-primary">Thêm</button>
+                                    </div>
+                                    <div class="multi-select-options">
+                                        <label class="multi-select-option">
+                                            <input type="checkbox" value="0002242" data-name="Bs Hương" />
+                                            <span>Bs Hương (0002242)</span>
+                                        </label>
+                                        <label class="multi-select-option">
+                                            <input type="checkbox" value="003544" data-name="Bs Quỳnh" />
+                                            <span>Bs Quỳnh (003544)</span>
+                                        </label>
+                                        <label class="multi-select-option">
+                                            <input type="checkbox" value="0001090" data-name="Bs Thủy" />
+                                            <span>Bs Thủy (0001090)</span>
+                                        </label>
+                                        <label class="multi-select-option">
+                                            <input type="checkbox" value="000456" data-name="Bs Lam" />
+                                            <span>Bs Lam (000456)</span>
+                                        </label>
+                                        <label class="multi-select-option">
+                                            <input type="checkbox" value="0011114" data-name="Bs Trung" />
+                                            <span>Bs Trung (0011114)</span>
+                                        </label>
+                                        <label class="multi-select-option">
+                                            <input type="checkbox" value="003366" data-name="Bs Thư" />
+                                            <span>Bs Thư (003366)</span>
+                                        </label>
+                                        <label class="multi-select-option">
+                                            <input type="checkbox" value="03130" data-name="Bs Hân" />
+                                            <span>Bs Hân (03130)</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <button id="clearFilterBtn" class="btn btn-secondary btn-sm btn-icon-only" title="Xóa bộ lọc">
+                                <span class="icon">✖</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Checkboxes in vertical column -->
+                        <div class="checkboxes-column">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="showInvalidOnlyCheckbox" />
+                                <span class="checkbox-text invalid">🚫 Chỉ hiển thị bệnh nhân có thuốc không hợp lệ</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="hideNotFoundMedicinesCheckbox" />
+                                <span class="checkbox-text">👻 Ẩn thuốc không tìm thấy trong danh mục</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="table-container">
                     <table id="resultsTable" class="data-table">
                         <thead>
                             <tr>
                                 <th class="col-stt">STT</th>
-                                <th class="col-ma-lk">Mã LK</th>
-                                <th class="col-ho-ten">Họ tên</th>
+                                <th class="col-ma-lk sortable" data-column="MA_LK">
+                                    Mã LK <span class="sort-icon">⇅</span>
+                                </th>
+                                <th class="col-ho-ten sortable" data-column="HO_TEN">
+                                    Họ tên <span class="sort-icon">⇅</span>
+                                </th>
                                 <th class="col-benh-chinh">Mã bệnh chính</th>
                                 <th class="col-benh-kt">Mã bệnh KT</th>
+                                <th class="col-ma-bac-si sortable" data-column="MA_BAC_SI">
+                                    Mã bác sĩ <span class="sort-icon">⇅</span>
+                                </th>
                                 <th class="col-ma-thuoc" style="display: none;">Mã thuốc</th>
-                                <th class="col-tong-thuoc" style="text-align: center;">Tổng số thuốc</th>
+                                <th class="col-tong-thuoc sortable" data-column="TOTAL_MEDICINES" style="text-align: center;">
+                                    Tổng số thuốc <span class="sort-icon">⇅</span>
+                                </th>
                             </tr>
                         </thead>
                         <tbody id="resultsTableBody">
                             <tr class="empty-row">
-                                <td colspan="7" class="empty-state">
+                                <td colspan="8" class="empty-state">
                                     Chọn khoảng thời gian và click Tìm kiếm để xem kết quả
                                 </td>
                             </tr>
