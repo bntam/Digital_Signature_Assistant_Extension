@@ -6,6 +6,8 @@ class BHYT4210 {
         this.apiService = null;
         this.allData = [];
         this.medicineRules = []; // Lưu danh sách thuốc và ICD rules
+        this.doctorList = []; // Lưu danh sách bác sĩ
+        this.maBacSiInitialized = false; // Flag to prevent duplicate initialization
         this.initialize();
     }
 
@@ -16,8 +18,11 @@ class BHYT4210 {
         this.apiService = new ApiService();
         await this.apiService.initializeFromSession();
         
-        // Load medicine rules from JSON
-        await this.loadMedicineRules();
+        // Load medicine rules and doctor list from Google Sheets
+        await Promise.all([
+            this.loadMedicineRules(),
+            this.loadDoctorList()
+        ]);
         
         // Set default dates to today
         this.setDefaultDates();
@@ -101,6 +106,56 @@ class BHYT4210 {
                     TEN_THUOC: values[1],
                     ICD_CHI_DINH: values[2] || '',
                     ICD_CHONG_CHI_DINH: values[3] || ''
+                });
+            }
+        }
+        
+        return result;
+    }
+
+    async loadDoctorList() {
+        try {
+            // Google Sheets ID and Sheet name
+            const SHEET_ID = '1Jd55vLdLz9sd8JEYaoITRGk5K4Ahwjau';
+            const SHEET_NAME = 'Data_BS';
+            
+            // Use Google Sheets CSV export URL
+            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}`;
+            
+            console.log('👨‍⚕️ Loading doctor list from Google Sheets...');
+            const response = await fetch(url);
+            const csvText = await response.text();
+            
+            // Parse CSV to JSON
+            this.doctorList = this.parseCSVToDoctorList(csvText);
+            console.log('👨‍⚕️ Loaded doctors:', this.doctorList.length, 'doctors');
+            
+            // Render doctor dropdown after loading
+            this.renderDoctorDropdown();
+        } catch (error) {
+            console.error('❌ Error loading doctor list from Google Sheets:', error);
+            this.doctorList = [];
+            this.showNotification('⚠️ Không thể tải danh sách bác sĩ từ Google Sheets', 'error');
+        }
+    }
+
+    parseCSVToDoctorList(csvText) {
+        const lines = csvText.split('\n');
+        const result = [];
+        
+        // Skip header row (first line)
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            
+            // Parse CSV line (handle quoted fields)
+            const values = this.parseCSVLine(line);
+            
+            if (values.length >= 3) {
+                result.push({
+                    STT: values[0],
+                    MA_BS: values[1],
+                    TEN_BS: values[2]
                 });
             }
         }
@@ -2405,26 +2460,18 @@ class BHYT4210 {
     getDoctorName(code) {
         if (!code) return '';
         
-        const doctorMap = {
-            '0002242': 'Bs Hương',
-            '003544': 'Bs Quỳnh',
-            '0001090': 'Bs Thủy',
-            '000456': 'Bs Lam',
-            '0011114': 'Bs Trung',
-            '003366': 'Bs Thư',
-            '03130': 'Bs Hân'
-        };
-        
         // Try exact match first
-        if (doctorMap[code]) {
-            return doctorMap[code];
+        const exactMatch = this.doctorList.find(doc => doc.MA_BS === code);
+        if (exactMatch) {
+            return exactMatch.TEN_BS;
         }
         
         // Try partial match (contains)
-        for (const [doctorCode, doctorName] of Object.entries(doctorMap)) {
-            if (code.includes(doctorCode) || doctorCode.includes(code)) {
-                return doctorName;
-            }
+        const partialMatch = this.doctorList.find(doc => 
+            code.includes(doc.MA_BS) || doc.MA_BS.includes(code)
+        );
+        if (partialMatch) {
+            return partialMatch.TEN_BS;
         }
         
         // Return original code if no match found
@@ -2432,15 +2479,63 @@ class BHYT4210 {
     }
 
     /**
+     * Render doctor dropdown with dynamic data from Google Sheets
+     */
+    renderDoctorDropdown() {
+        const dropdown = document.getElementById('maBacSiDropdown');
+        if (!dropdown) return;
+        
+        const optionsContainer = dropdown.querySelector('.multi-select-options');
+        if (!optionsContainer) return;
+        
+        // Clear existing options
+        optionsContainer.innerHTML = '';
+        
+        // Add doctor options from loaded data
+        this.doctorList.forEach(doctor => {
+            const option = document.createElement('label');
+            option.className = 'multi-select-option';
+            option.innerHTML = `
+                <input type="checkbox" value="${doctor.MA_BS}" data-name="${doctor.TEN_BS}" />
+                <span>${doctor.TEN_BS} (${doctor.MA_BS})</span>
+            `;
+            optionsContainer.appendChild(option);
+            
+            // Add event listener to each checkbox
+            const checkbox = option.querySelector('input');
+            checkbox.addEventListener('change', () => {
+                if (checkbox.checked) {
+                    this.selectedMaBacSi.add(checkbox.value);
+                } else {
+                    this.selectedMaBacSi.delete(checkbox.value);
+                }
+                this.updateMaBacSiDisplay();
+                this.applyFilters();
+            });
+        });
+    }
+
+    /**
      * Initialize multi-select dropdown for MA_BAC_SI
      */
     initMaBacSiMultiSelect() {
+        // Prevent duplicate initialization
+        if (this.maBacSiInitialized) {
+            return;
+        }
+        
         const multiSelectInput = document.getElementById('maBacSiMultiSelect');
         const dropdown = document.getElementById('maBacSiDropdown');
         const customInput = document.getElementById('customMaBacSiInput');
-        const checkboxes = dropdown.querySelectorAll('.multi-select-option input[type="checkbox"]');
         
-        this.selectedMaBacSi = new Set();
+        if (!multiSelectInput || !dropdown || !customInput) {
+            return;
+        }
+        
+        // Initialize selectedMaBacSi if not exists
+        if (!this.selectedMaBacSi) {
+            this.selectedMaBacSi = new Set();
+        }
         
         // Toggle dropdown
         multiSelectInput.addEventListener('click', (e) => {
@@ -2459,19 +2554,6 @@ class BHYT4210 {
                 dropdown.style.display = 'none';
                 multiSelectInput.classList.remove('open');
             }
-        });
-        
-        // Handle checkbox changes
-        checkboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', () => {
-                if (checkbox.checked) {
-                    this.selectedMaBacSi.add(checkbox.value);
-                } else {
-                    this.selectedMaBacSi.delete(checkbox.value);
-                }
-                this.updateMaBacSiDisplay();
-                this.applyFilters();
-            });
         });
         
         // Prevent dropdown close when clicking inside
@@ -2521,10 +2603,12 @@ class BHYT4210 {
             }
         };
         
-        addCustomBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            addCustomCode();
-        });
+        if (addCustomBtn) {
+            addCustomBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                addCustomCode();
+            });
+        }
         
         customInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -2533,6 +2617,9 @@ class BHYT4210 {
                 addCustomCode();
             }
         });
+        
+        // Mark as initialized
+        this.maBacSiInitialized = true;
     }
     
     /**
