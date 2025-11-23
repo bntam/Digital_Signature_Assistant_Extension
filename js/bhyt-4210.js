@@ -503,7 +503,7 @@ class BHYT4210 {
             NHOMBHXH: "-1",
             NHOMDV: "-1",
             CSKCB: "54018",
-            KHOA: "-1",
+            KHOA: "42480",
             PHONG: "-1",
             LOAITIEPNHAN: "2",
             THEXML: "XML1"
@@ -596,7 +596,7 @@ class BHYT4210 {
             NHOMBHXH: "-1",
             NHOMDV: "-1",
             CSKCB: "54018",
-            KHOA: "-1",
+            KHOA: "42480",
             PHONG: "-1",
             LOAITIEPNHAN: "2",
             THEXML: "XML2"
@@ -812,7 +812,7 @@ class BHYT4210 {
                 <td class="col-ho-ten" title="${this.escapeHtml(group.HO_TEN)}">${this.escapeHtml(group.HO_TEN)}</td>
                 <td class="col-benh-chinh" title="${this.escapeHtml(group.MA_BENH_CHINH)}">${this.escapeHtml(group.MA_BENH_CHINH)}</td>
                 <td class="col-benh-kt" title="${this.escapeHtml(group.MA_BENH_KT)}">${this.escapeHtml(group.MA_BENH_KT)}</td>
-                <td class="col-ma-bac-si" title="${this.escapeHtml(group.MA_BAC_SI)}">${this.escapeHtml(group.MA_BAC_SI)}</td>
+                <td class="col-ma-bac-si" title="${this.escapeHtml(group.MA_BAC_SI)}">${this.escapeHtml(this.getDoctorName(group.MA_BAC_SI))}</td>
                 <td class="col-tong-thuoc">
                     ${medicineCountHtml}
                 </td>
@@ -2397,6 +2397,38 @@ class BHYT4210 {
             }
         });
         this.showNotification('📁 Đã thu gọn tất cả', 'info');
+    }
+
+    /**
+     * Get doctor name from code
+     */
+    getDoctorName(code) {
+        if (!code) return '';
+        
+        const doctorMap = {
+            '0002242': 'Bs Hương',
+            '003544': 'Bs Quỳnh',
+            '0001090': 'Bs Thủy',
+            '000456': 'Bs Lam',
+            '0011114': 'Bs Trung',
+            '003366': 'Bs Thư',
+            '03130': 'Bs Hân'
+        };
+        
+        // Try exact match first
+        if (doctorMap[code]) {
+            return doctorMap[code];
+        }
+        
+        // Try partial match (contains)
+        for (const [doctorCode, doctorName] of Object.entries(doctorMap)) {
+            if (code.includes(doctorCode) || doctorCode.includes(code)) {
+                return doctorName;
+            }
+        }
+        
+        // Return original code if no match found
+        return code;
     }
 
     /**
