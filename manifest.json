@@ -10,7 +10,8 @@
   ],
   "host_permissions": [
     "https://bvphuyen.vncare.vn/*",
-    "https://docs.google.com/*"
+    "https://docs.google.com/*",
+    "https://sheets.googleapis.com/*"
   ],
   "content_scripts": [
     {
@@ -34,7 +35,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["icons/*", "medical-dashboard.html", "bhyt-xml130-update.html", "js/*", "css/*", "data/*"],
+      "resources": ["icons/*", "medical-dashboard.html", "bhyt-xml130-update.html", "procedure-scheduler.html", "js/*", "css/*", "data/*"],
       "matches": ["https://bvphuyen.vncare.vn/*"]
     }
   ],

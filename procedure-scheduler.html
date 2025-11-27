@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chia Thủ Thuật - BV Phú Yên</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .config-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+
+        .config-section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            padding: 15px 40px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            margin-left: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .progress-container {
+            width: 100%;
+            max-width: 600px;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 0 auto 20px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0;
+            transition: width 0.3s ease;
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        #progressText {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .results {
+            display: none;
+        }
+
+        .results.active {
+            display: block;
+        }
+
+        .result-summary {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 20px;
+            margin-bottom: 25px;
+            border-radius: 8px;
+        }
+
+        .result-summary.error {
+            background: #ffebee;
+            border-left-color: #f44336;
+        }
+
+        .logs-container {
+            background: #263238;
+            color: #aed581;
+            padding: 20px;
+            border-radius: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        .logs-container::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .logs-container::-webkit-scrollbar-track {
+            background: #1e272e;
+        }
+
+        .logs-container::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 5px;
+        }
+
+        .patient-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .patient-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .patient-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .patient-table tr:hover {
+            background: #f5f5f5;
+        }
+
+        .actions {
+            margin-top: 25px;
+            text-align: center;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            color: #1565c0;
+        }
+
+        .alert-warning {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            color: #e65100;
+        }
+
+        .btn-link {
+            background: #2196f3;
+            color: white;
+            text-decoration: none;
+            display: inline-block;
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.4);
+        }
+
+        .btn-link:hover {
+            background: #1976d2;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.6);
+        }
+
+        .table-section {
+            margin-top: 30px;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .table-header h3 {
+            color: #667eea;
+            margin: 0;
+        }
+
+        .table-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 8px 20px;
+            font-size: 0.9em;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: #667eea;
+            color: white;
+            transition: all 0.3s;
+        }
+
+        .btn-small:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 Hệ Thống Chia Thủ Thuật</h1>
+        </div>
+
+        <div class="content">
+            <!-- Action Buttons -->
+            <div class="actions" style="margin-bottom: 30px;">
+                <button class="btn btn-primary" id="btnChiaTT">
+                    🎯 Bắt Đầu Chia Thủ Thuật
+                </button>
+                <a href="https://docs.google.com/spreadsheets/d/18s8RPoITbVq3StIdG6VUDoZi7GpZfdxIWr6XvBB_FlY/edit" target="_blank" class="btn btn-link">
+                    📊 Mở Google Sheets
+                </a>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="loading" id="loading">
+                <div class="progress-container">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <p id="progressText">Đang xử lý dữ liệu...</p>
+            </div>
+
+            <!-- Results -->
+            <div class="results" id="results">
+                <div class="config-section">
+                    <h2>📊 Kết Quả Chia Thủ Thuật</h2>
+                    <div class="result-summary" id="resultSummary"></div>
+
+                    <!-- Export Buttons - Moved to top -->
+                    <div style="text-align: center; margin: 25px 0;">
+                        <button class="btn btn-primary" id="btnExportBN" style="margin-right: 10px;">
+                            📥 Kết quả theo Bệnh Nhân
+                        </button>
+                        <button class="btn btn-primary" id="btnExportTT">
+                            📥 Kết quả theo Bác Sĩ
+                        </button>
+                    </div>
+
+                    <!-- Danh Sách Bệnh Nhân -->
+                    <div class="table-section">
+                        <div class="table-header">
+                            <h3>👥 Danh Sách Bệnh Nhân Đã Phân Bổ</h3>
+                            <div class="table-actions">
+                                <button class="btn btn-small" id="btnCopyBN">📋 Copy</button>
+                            </div>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table class="patient-table" id="patientTable"></table>
+                        </div>
+                    </div>
+
+                    <!-- Lịch Thủ Thuật -->
+                    <div class="table-section">
+                        <div class="table-header">
+                            <h3>📅 Lịch Thủ Thuật Phân Bổ (Sheet TT)</h3>
+                            <div class="table-actions">
+                                <button class="btn btn-small" id="btnCopyTT">📋 Copy</button>
+                            </div>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table class="patient-table" id="scheduleTable"></table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/google-sheets-service.js"></script>
+    <script src="js/procedure-scheduler-v2.js"></script>
+    <script src="js/procedure-scheduler-ui.js"></script>
+</body>
+</html>

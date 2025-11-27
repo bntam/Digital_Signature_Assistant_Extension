@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const openDashboardBtn = document.getElementById('openDashboardBtn');
     const openXML130Btn = document.getElementById('openXML130Btn');
     const open4210Btn = document.getElementById('open4210Btn');
+    const openProcedureSchedulerBtn = document.getElementById('openProcedureSchedulerBtn');
     const refreshStatusBtn = document.getElementById('refreshStatusBtn');
     
     // Check current tab domain
@@ -79,10 +80,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.close(); // Close popup
     }
     
+    // Open Procedure Scheduler page
+    function openProcedureScheduler() {
+        const schedulerUrl = chrome.runtime.getURL('procedure-scheduler.html');
+        chrome.tabs.create({ url: schedulerUrl });
+        window.close(); // Close popup
+    }
+    
     // Event listeners
     openDashboardBtn.addEventListener('click', openDashboard);
     openXML130Btn.addEventListener('click', openXML130Page);
     open4210Btn.addEventListener('click', open4210Page);
+    openProcedureSchedulerBtn.addEventListener('click', openProcedureScheduler);
     refreshStatusBtn.addEventListener('click', () => {
         refreshStatusBtn.classList.add('loading');
         checkConnectionStatus().then(() => {
