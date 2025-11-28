@@ -427,19 +427,8 @@ class ProcedureSchedulerV2 {
                 );
             }
 
-            // PHASE 3: Schedule Normal Exam (sorted by priority score)
+            // PHASE 3: Schedule Normal Exam
             this.log(`\n=== PHASE 3: CHIA - KHÁM BÌNH THƯỜNG ===`);
-            
-            // Sort by priority score (TimeKham + procedure count + complexity)
-            normalExam.sort((a, b) => {
-                const scoreA = this.calculatePriorityScore(a);
-                const scoreB = this.calculatePriorityScore(b);
-                return scoreB - scoreA; // Higher score first
-            });
-            this.log(`Sorted ${normalExam.length} patients by priority score`);
-            if (normalExam.length > 0) {
-                this.log(`  Top priority: ${normalExam[0].Code} (score: ${this.calculatePriorityScore(normalExam[0])})`);
-            }
             
             for (const patient of normalExam) {
                 this.scheduleProceduresForPatient(
@@ -608,6 +597,23 @@ class ProcedureSchedulerV2 {
         }
     }
 
+    patientHasConflictingProcedure(patient, currentTime, excludeProcName) {
+        // Check all procedures to ensure patient doesn't have another procedure at same time
+        const allProcedures = [...this.EARLY_DISCHARGE_ORDER, ...this.NORMAL_EXAM_ORDER];
+        
+        for (const otherProc of allProcedures) {
+            if (otherProc === excludeProcName) continue; // Skip current procedure
+            
+            const otherTtKey = 'tt' + otherProc;
+            if (patient[otherTtKey] instanceof Date && 
+                patient[otherTtKey].getTime() === currentTime.getTime()) {
+                return true; // Found conflicting procedure at same time
+            }
+        }
+        
+        return false; // No conflicts
+    }
+
     /**
      * Schedule ONE procedure - CORE LOGIC (OPTIMIZED)
      */
@@ -691,6 +697,15 @@ class ProcedureSchedulerV2 {
             const conflictResult = this.getConflictNextSlot(arrBS, timeSlots, slotIndex, staffIndex, procName);
             if (conflictResult > slotIndex) {
                 currentTime = timeSlots[conflictResult];
+                continue;
+            }
+
+            // STEP 7: Check patient doesn't have another procedure at same time
+            if (this.patientHasConflictingProcedure(patient, currentTime, procName)) {
+                currentTime = this.getNextSlot(timeSlots, currentTime);
+                if (!currentTime) {
+                    return { success: false, reason: 'Trùng giờ với thủ thuật khác' };
+                }
                 continue;
             }
 
@@ -778,48 +793,215 @@ class ProcedureSchedulerV2 {
     }
 
     /**
-     * Get next slot that avoids conflict (OPTIMIZED)
-     * Returns slot index, or current index if no conflict
+     * Get next slot that avoids conflict - C# EXACT LOGIC
+     * Returns next valid slot index, or current index if no conflict
+     * 
+     * C# logic (lines 1170-1230 for XoaTay, etc.):
+     * - LOOKBACK: Check previous slots for conflict procedures
+     * - LOOKAHEAD: Check if staff is busy (ANY non-null cell) in next N slots
      */
     getConflictNextSlot(arrBS, timeSlots, slotIndex, staffIndex, procName) {
-        const config = this.CONFLICT_CONFIG[procName];
-        if (!config) return slotIndex; // No conflict rules
-
-        let maxSkip = slotIndex;
-
-        // LOOKBACK check - find earliest slot after conflicts
-        if (config.lookback) {
-            for (const [conflictProc, lookbackSlots] of Object.entries(config.lookback)) {
-                const startIdx = slotIndex - lookbackSlots <= 0 ? 0 : slotIndex - lookbackSlots;
-                const displayName = this.DISPLAY_NAMES[conflictProc];
-                
-                for (let k = startIdx; k < slotIndex; k++) {
-                    const cell = arrBS[k][staffIndex];
-                    if (cell && cell !== 'x' && cell.includes('-' + displayName)) {
-                        // Found conflict - need to skip to after lookback window
-                        const requiredSkip = k + lookbackSlots + 1;
-                        maxSkip = Math.max(maxSkip, requiredSkip);
+        // Use C# if-else chain matching lines 1170-1230 (XoaTay), 1020-1080 (XoaMay), etc.
+        
+        // Check lookback conflicts - matching C# exactly
+        if (procName === 'XoaTay') {
+            // XoaTay: lookback 10 for XoaTay, 7 for others
+            const tempKXoaTay = slotIndex - 10 <= 0 ? 0 : slotIndex - 10;
+            const tempKOthers = slotIndex - 7 <= 0 ? 0 : slotIndex - 7;
+            const tempKGiacHoi = slotIndex - 4 <= 0 ? 0 : slotIndex - 4;
+            
+            for (let k = tempKXoaTay; k < slotIndex; k++) {
+                const cell = arrBS[k][staffIndex];
+                if (cell && cell !== 'x') {
+                    if (cell.includes('-Xoa Tay')) {
+                        return slotIndex + 1;
+                    }
+                    else if (k >= tempKOthers && (cell.includes('-Xoa Máy') || cell.includes('-Cứu') || cell.includes('-Ròng Rọc'))) {
+                        return slotIndex + 1;
+                    }
+                    else if (k >= tempKGiacHoi && cell.includes('-Giác Hơi')) {
+                        return slotIndex + 1;
+                    }
+                }
+            }
+            
+            // XoaTay: lookahead 10 - check if staff is busy
+            const tempIXT = slotIndex + 10 >= arrBS.length ? arrBS.length - 1 : slotIndex + 10;
+            for (let k = slotIndex; k <= tempIXT; k++) {
+                if (arrBS[k][staffIndex] != null && arrBS[k][staffIndex] !== 'x') {
+                    return slotIndex + 1;
+                }
+            }
+        }
+        else if (procName === 'XoaMay') {
+            // XoaMay: lookback matching other procedures
+            const tempKXoaTay = slotIndex - 10 <= 0 ? 0 : slotIndex - 10;
+            const tempKOthers = slotIndex - 7 <= 0 ? 0 : slotIndex - 7;
+            const tempKGiacHoi = slotIndex - 4 <= 0 ? 0 : slotIndex - 4;
+            
+            for (let k = tempKXoaTay; k < slotIndex; k++) {
+                const cell = arrBS[k][staffIndex];
+                if (cell && cell !== 'x') {
+                    if (cell.includes('-Xoa Tay')) {
+                        return slotIndex + 1;
+                    }
+                    else if (k >= tempKOthers && (cell.includes('-Xoa Máy') || cell.includes('-Cứu') || cell.includes('-Ròng Rọc'))) {
+                        return slotIndex + 1;
+                    }
+                    else if (k >= tempKGiacHoi && cell.includes('-Giác Hơi')) {
+                        return slotIndex + 1;
+                    }
+                }
+            }
+            
+            // XoaMay: lookahead 7 - check if staff is busy
+            const tempIXM = slotIndex + 7 >= arrBS.length ? arrBS.length - 1 : slotIndex + 7;
+            for (let k = slotIndex; k <= tempIXM; k++) {
+                if (arrBS[k][staffIndex] != null && arrBS[k][staffIndex] !== 'x') {
+                    return slotIndex + 1;
+                }
+            }
+        }
+        else if (procName === 'Cuu') {
+            // Cuu: lookback
+            const tempKXoaTay = slotIndex - 10 <= 0 ? 0 : slotIndex - 10;
+            const tempKOthers = slotIndex - 7 <= 0 ? 0 : slotIndex - 7;
+            const tempKGiacHoi = slotIndex - 4 <= 0 ? 0 : slotIndex - 4;
+            
+            for (let k = tempKXoaTay; k < slotIndex; k++) {
+                const cell = arrBS[k][staffIndex];
+                if (cell && cell !== 'x') {
+                    if (cell.includes('-Xoa Tay')) {
+                        return slotIndex + 1;
+                    }
+                    else if (k >= tempKOthers && (cell.includes('-Xoa Máy') || cell.includes('-Cứu') || cell.includes('-Ròng Rọc'))) {
+                        return slotIndex + 1;
+                    }
+                    else if (k >= tempKGiacHoi && cell.includes('-Giác Hơi')) {
+                        return slotIndex + 1;
+                    }
+                }
+            }
+            
+            // Cuu: lookahead 7
+            const tempICuu = slotIndex + 7 >= arrBS.length ? arrBS.length - 1 : slotIndex + 7;
+            for (let k = slotIndex; k <= tempICuu; k++) {
+                if (arrBS[k][staffIndex] != null && arrBS[k][staffIndex] !== 'x') {
+                    return slotIndex + 1;
+                }
+            }
+        }
+        else if (procName === 'RongRoc') {
+            // RongRoc: lookback
+            const tempKXoaTay = slotIndex - 10 <= 0 ? 0 : slotIndex - 10;
+            const tempKOthers = slotIndex - 7 <= 0 ? 0 : slotIndex - 7;
+            const tempKGiacHoi = slotIndex - 4 <= 0 ? 0 : slotIndex - 4;
+            
+            for (let k = tempKXoaTay; k < slotIndex; k++) {
+                const cell = arrBS[k][staffIndex];
+                if (cell && cell !== 'x') {
+                    if (cell.includes('-Xoa Tay')) {
+                        return slotIndex + 1;
+                    }
+                    else if (k >= tempKOthers && (cell.includes('-Xoa Máy') || cell.includes('-Cứu') || cell.includes('-Ròng Rọc'))) {
+                        return slotIndex + 1;
+                    }
+                    else if (k >= tempKGiacHoi && cell.includes('-Giác Hơi')) {
+                        return slotIndex + 1;
+                    }
+                }
+            }
+            
+            // RongRoc: lookahead 7
+            const tempIRongRoc = slotIndex + 7 >= arrBS.length ? arrBS.length - 1 : slotIndex + 7;
+            for (let k = slotIndex; k <= tempIRongRoc; k++) {
+                if (arrBS[k][staffIndex] != null && arrBS[k][staffIndex] !== 'x') {
+                    return slotIndex + 1;
+                }
+            }
+        }
+        else if (procName === 'GiacHoi') {
+            // GiacHoi: lookback
+            const tempKXoaTay = slotIndex - 10 <= 0 ? 0 : slotIndex - 10;
+            const tempKOthers = slotIndex - 7 <= 0 ? 0 : slotIndex - 7;
+            const tempKGiacHoi = slotIndex - 4 <= 0 ? 0 : slotIndex - 4;
+            
+            for (let k = tempKXoaTay; k < slotIndex; k++) {
+                const cell = arrBS[k][staffIndex];
+                if (cell && cell !== 'x') {
+                    if (cell.includes('-Xoa Tay')) {
+                        return slotIndex + 1;
+                    }
+                    else if (k >= tempKOthers && (cell.includes('-Xoa Máy') || cell.includes('-Cứu') || cell.includes('-Ròng Rọc'))) {
+                        return slotIndex + 1;
+                    }
+                    else if (k >= tempKGiacHoi && cell.includes('-Giác Hơi')) {
+                        return slotIndex + 1;
+                    }
+                }
+            }
+            
+            // GiacHoi: lookahead 4
+            const tempIGiacHoi = slotIndex + 4 >= arrBS.length ? arrBS.length - 1 : slotIndex + 4;
+            for (let k = slotIndex; k <= tempIGiacHoi; k++) {
+                if (arrBS[k][staffIndex] != null && arrBS[k][staffIndex] !== 'x') {
+                    return slotIndex + 1;
+                }
+            }
+        }
+        else if (procName === 'Xung') {
+            // Xung: lookback
+            const tempKXoaTay = slotIndex - 10 <= 0 ? 0 : slotIndex - 10;
+            const tempKOthers = slotIndex - 7 <= 0 ? 0 : slotIndex - 7;
+            const tempKGiacHoi = slotIndex - 4 <= 0 ? 0 : slotIndex - 4;
+            
+            for (let k = tempKXoaTay; k < slotIndex; k++) {
+                const cell = arrBS[k][staffIndex];
+                if (cell && cell !== 'x') {
+                    if (cell.includes('-Xoa Tay')) {
+                        return slotIndex + 1;
+                    }
+                    else if (k >= tempKOthers && (cell.includes('-Xoa Máy') || cell.includes('-Cứu') || cell.includes('-Ròng Rọc'))) {
+                        return slotIndex + 1;
+                    }
+                    else if (k >= tempKGiacHoi && cell.includes('-Giác Hơi')) {
+                        return slotIndex + 1;
+                    }
+                }
+            }
+            
+            // Xung: lookahead 7
+            const tempIXung = slotIndex + 7 >= arrBS.length ? arrBS.length - 1 : slotIndex + 7;
+            for (let k = slotIndex; k <= tempIXung; k++) {
+                if (arrBS[k][staffIndex] != null && arrBS[k][staffIndex] !== 'x') {
+                    return slotIndex + 1;
+                }
+            }
+        }
+        else {
+            // Other procedures (Ngam, Xong, Bo, Cham, MangCham, HongNgoai, Parafin, Cay)
+            // Only lookback check, no lookahead
+            const tempKXoaTay = slotIndex - 10 <= 0 ? 0 : slotIndex - 10;
+            const tempKOthers = slotIndex - 7 <= 0 ? 0 : slotIndex - 7;
+            const tempKGiacHoi = slotIndex - 4 <= 0 ? 0 : slotIndex - 4;
+            
+            for (let k = tempKXoaTay; k < slotIndex; k++) {
+                const cell = arrBS[k][staffIndex];
+                if (cell && cell !== 'x') {
+                    if (cell.includes('-Xoa Tay')) {
+                        return slotIndex + 1;
+                    }
+                    else if (k >= tempKOthers && (cell.includes('-Xoa Máy') || cell.includes('-Cứu') || cell.includes('-Ròng Rọc'))) {
+                        return slotIndex + 1;
+                    }
+                    else if (k >= tempKGiacHoi && cell.includes('-Giác Hơi')) {
+                        return slotIndex + 1;
                     }
                 }
             }
         }
-
-        // LOOKAHEAD check
-        if (config.lookahead) {
-            for (const [conflictProc, lookaheadSlots] of Object.entries(config.lookahead)) {
-                const endIdx = slotIndex + lookaheadSlots >= arrBS.length ? arrBS.length - 1 : slotIndex + lookaheadSlots;
-                
-                for (let k = slotIndex; k <= endIdx; k++) {
-                    const cell = arrBS[k][staffIndex];
-                    if (cell && cell !== 'x') {
-                        // Found occupied slot - skip past it
-                        maxSkip = Math.max(maxSkip, k + 1);
-                    }
-                }
-            }
-        }
-
-        return maxSkip;
+        
+        return slotIndex; // No conflict
     }
 
     /**
@@ -900,44 +1082,106 @@ class ProcedureSchedulerV2 {
     }
 
     /**
-     * Conflict check - C# EXACT LOGIC (lines 442-491 for each proc)
+     * Conflict check - C# EXACT LOGIC
+     * Port trực tiếp từ C# không tối ưu
      */
     hasConflict(arrBS, slotIndex, staffIndex, procName) {
-        const config = this.CONFLICT_CONFIG[procName];
-        if (!config) return false;
+        // LOOKBACK cho tất cả procedures (trừ Ngâm, Xông, Bó có thêm device check)
+        let isXoaTay = false;
+        let isXoaMay = false;
+        let isCuu = false;
+        let isGiacHoi = false;
+        let isRongRoc = false;
+        
+        const tempKXoaTay = slotIndex - 10 <= 0 ? 0 : slotIndex - 10;
+        const tempKXoaMay = slotIndex - 7 <= 0 ? 0 : slotIndex - 7;
+        const tempKCuu = slotIndex - 7 <= 0 ? 0 : slotIndex - 7;
+        const tempKRongRoc = slotIndex - 7 <= 0 ? 0 : slotIndex - 7;
+        const tempKGiacHoi = slotIndex - 4 <= 0 ? 0 : slotIndex - 4;
 
-        // LOOKBACK check
-        if (config.lookback) {
-            for (const [conflictProc, lookbackSlots] of Object.entries(config.lookback)) {
-                const startIdx = slotIndex - lookbackSlots <= 0 ? 0 : slotIndex - lookbackSlots;
-                
-                // Get display name for conflict procedure
-                const displayName = this.DISPLAY_NAMES[conflictProc];
-                
-                for (let k = startIdx; k < slotIndex; k++) {
-                    const cell = arrBS[k][staffIndex];
-                    if (!cell || cell === 'x') continue;
-
-                    // Check if cell contains conflict procedure (using display name)
-                    if (cell.includes('-' + displayName)) {
-                        return true;
-                    }
+        for (let k = tempKXoaTay; k < slotIndex; k++) {
+            if (arrBS[k][staffIndex] != null) {
+                if (arrBS[k][staffIndex].includes('-Xoa Tay')) {
+                    isXoaTay = true;
+                    break;
+                }
+                else if ((k >= tempKXoaMay) && arrBS[k][staffIndex].includes('-Xoa Máy')) {
+                    isXoaMay = true;
+                    break;
+                }
+                else if ((k >= tempKCuu) && arrBS[k][staffIndex].includes('-Cứu')) {
+                    isCuu = true;
+                    break;
+                }
+                else if ((k >= tempKRongRoc) && arrBS[k][staffIndex].includes('-Ròng Rọc')) {
+                    isRongRoc = true;
+                    break;
+                }
+                else if ((k >= tempKGiacHoi) && arrBS[k][staffIndex].includes('-Giác Hơi')) {
+                    isGiacHoi = true;
+                    break;
                 }
             }
         }
 
-        // LOOKAHEAD check
-        if (config.lookahead) {
-            for (const [conflictProc, lookaheadSlots] of Object.entries(config.lookahead)) {
-                const endIdx = slotIndex + lookaheadSlots >= arrBS.length ? arrBS.length - 1 : slotIndex + lookaheadSlots;
-                
-                for (let k = slotIndex; k <= endIdx; k++) {
-                    const cell = arrBS[k][staffIndex];
-                    if (cell && cell !== 'x') {
-                        return true; // Any occupied slot in lookahead window
-                    }
+        // LOOKAHEAD cho các procedure đặc biệt
+        if (procName === 'XoaMay') {
+            const tempIXM = slotIndex + 7 >= arrBS.length ? arrBS.length - 1 : slotIndex + 7;
+            for (let k = slotIndex; k <= tempIXM; k++) {
+                if (arrBS[k][staffIndex] != null && arrBS[k][staffIndex] != 'x') {
+                    isXoaMay = true;
+                    break;
                 }
             }
+        }
+        else if (procName === 'XoaTay') {
+            const tempIXT = slotIndex + 10 >= arrBS.length ? arrBS.length - 1 : slotIndex + 10;
+            for (let k = slotIndex; k <= tempIXT; k++) {
+                if (arrBS[k][staffIndex] != null && arrBS[k][staffIndex] != 'x') {
+                    isXoaTay = true;
+                    break;
+                }
+            }
+        }
+        else if (procName === 'Cuu') {
+            const tempICuu = slotIndex + 7 >= arrBS.length ? arrBS.length - 1 : slotIndex + 7;
+            for (let k = slotIndex; k <= tempICuu; k++) {
+                if (arrBS[k][staffIndex] != null && arrBS[k][staffIndex] != 'x') {
+                    isCuu = true;
+                    break;
+                }
+            }
+        }
+        else if (procName === 'GiacHoi') {
+            const tempIGiacHoi = slotIndex + 4 >= arrBS.length ? arrBS.length - 1 : slotIndex + 4;
+            for (let k = slotIndex; k <= tempIGiacHoi; k++) {
+                if (arrBS[k][staffIndex] != null && arrBS[k][staffIndex] != 'x') {
+                    isGiacHoi = true;
+                    break;
+                }
+            }
+        }
+        else if (procName === 'RongRoc') {
+            const tempIRongRoc = slotIndex + 7 >= arrBS.length ? arrBS.length - 1 : slotIndex + 7;
+            for (let k = slotIndex; k <= tempIRongRoc; k++) {
+                if (arrBS[k][staffIndex] != null && arrBS[k][staffIndex] != 'x') {
+                    isRongRoc = true;
+                    break;
+                }
+            }
+        }
+        else if (procName === 'Xung') {
+            const tempIXung = slotIndex + 7 >= arrBS.length ? arrBS.length - 1 : slotIndex + 7;
+            for (let k = slotIndex; k <= tempIXung; k++) {
+                if (arrBS[k][staffIndex] != null && arrBS[k][staffIndex] != 'x') {
+                    return true;
+                }
+            }
+        }
+
+        // Return true nếu có conflict
+        if (isXoaTay || isXoaMay || isCuu || isRongRoc || isGiacHoi) {
+            return true;
         }
 
         return false;
