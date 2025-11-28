@@ -18,7 +18,18 @@
 function doPost(e) {
   try {
     // Parse request body
-    const data = JSON.parse(e.postData.contents);
+    // Support both JSON body (old) and FormData (new - for CORS fix)
+    let data;
+    if (e.parameter && e.parameter.payload) {
+      // FormData from Chrome Extension (to avoid CORS preflight)
+      data = JSON.parse(e.parameter.payload);
+    } else if (e.postData && e.postData.contents) {
+      // JSON body (original method)
+      data = JSON.parse(e.postData.contents);
+    } else {
+      throw new Error('No data received');
+    }
+    
     const action = data.action || 'createTT'; // default action
     
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -26,6 +37,11 @@ function doPost(e) {
     // Action: Cập nhật sheet BN
     if (action === 'updateBN') {
       return updateBNSheet(ss, data);
+    }
+    
+    // Action: Ghi bulk data vào sheet BN (từ HIS modal)
+    if (action === 'writeBulkBN') {
+      return writeBulkBNSheet(ss, data);
     }
     
     // Action: Tạo sheet TT
@@ -143,6 +159,84 @@ function updateBNSheet(ss, data) {
 }
 
 /**
+ * Ghi bulk data vào sheet BN (từ HIS modal)
+ * Ghi data từ cell B22 trở đi (17 cột: B-R)
+ */
+function writeBulkBNSheet(ss, data) {
+  try {
+    // Validate data
+    if (!data.data || !Array.isArray(data.data)) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: 'Invalid data format'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // Get sheet BN
+    const sheet = ss.getSheetByName('BN');
+    if (!sheet) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: 'Sheet BN not found'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    const startCell = data.startCell || 'B22';
+    const dataRows = data.data;
+    
+    // Parse start cell (e.g., "B22" -> row=22, col=2)
+    const match = startCell.match(/^([A-Z]+)(\d+)$/);
+    if (!match) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: 'Invalid startCell format'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    const startCol = columnToNumber(match[1]);
+    const startRow = parseInt(match[2]);
+    
+    // Clear old data first (from B22 to R with enough rows)
+    const maxRows = Math.max(dataRows.length, 50);
+    sheet.getRange(startRow, startCol, maxRows, 17).clearContent();
+    
+    // Write new data
+    if (dataRows.length > 0) {
+      const numCols = dataRows[0].length;
+      sheet.getRange(startRow, startCol, dataRows.length, numCols).setValues(dataRows);
+    }
+    
+    Logger.log('✅ Wrote ' + dataRows.length + ' rows to BN sheet starting at ' + startCell);
+    
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      action: 'writeBulkBN',
+      rowsWritten: dataRows.length,
+      startCell: startCell,
+      timestamp: new Date().toISOString()
+    })).setMimeType(ContentService.MimeType.JSON);
+    
+  } catch (error) {
+    Logger.log('❌ Error in writeBulkBNSheet: ' + error.toString());
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: error.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
+ * Convert column letter to number (A=1, B=2, ..., Z=26, AA=27, etc.)
+ */
+function columnToNumber(column) {
+  let number = 0;
+  for (let i = 0; i < column.length; i++) {
+    number = number * 26 + (column.charCodeAt(i) - 64);
+  }
+  return number;
+}
+
+/**
  * Update sheet TT với kết quả thủ thuật (grid format)
  * Match C# ManageExcelPrintTT() - UPDATE theo STT, không create mới
  * Sheet TT phải có sẵn với columns: STT, Giờ, và các staff names
@@ -251,63 +345,4 @@ function createTTSheet(ss, data) {
       error: error.toString()
     })).setMimeType(ContentService.MimeType.JSON);
   }
-}
-
-/**
- * TEST FUNCTION - Cập nhật sheet BN
- * Chạy hàm này để test xem có update đúng cột không
- */
-function testUpdateBN() {
-  const testData = {
-    postData: {
-      contents: JSON.stringify({
-        action: 'updateBN',
-        updates: [
-          {
-            STT: '1',  // Thay bằng STT thật trong sheet của bạn
-            data: {
-              Cham: '08:30-KTV01',      // Column E
-              Xung: '09:00-KTV02',      // Column G
-              Parafin: '09:30-KTV01'    // Column J
-            }
-          },
-          {
-            STT: '2',  // Thay bằng STT thật trong sheet của bạn
-            data: {
-              Cham: '08:45-KTV02',      // Column E
-              Ngam: '09:15-KTV03'       // Column L
-            }
-          }
-        ]
-      })
-    }
-  };
-  
-  const result = doPost(testData);
-  Logger.log(result.getContent());
-}
-
-/**
- * TEST FUNCTION - Tạo sheet TT
- * ⭐ CẬP NHẬT: Dùng format mới với staffNames và updates
- */
-function testCreateTT() {
-  const testData = {
-    postData: {
-      contents: JSON.stringify({
-        action: 'createTT',
-        staffNames: ['KIET', 'LAN', 'TRAI', 'HONG'],
-        updates: [
-          { STT: '1', time: '7:01', data: ['G01-Cham', '', '', ''] },
-          { STT: '2', time: '7:04', data: ['', 'G02-Xung', '', ''] },
-          { STT: '3', time: '7:07', data: ['', '', 'G03-Ngam', ''] },
-          { STT: '4', time: '7:10', data: ['', '', '', 'G04-Parafin'] },
-          { STT: '5', time: '7:13', data: ['G05-Cham', 'G06-Xung', '', ''] }
-        ]
-      })
-    }
-  };
-  
-  const result = doPost(testData);
-  Logger.log(result.getContent());
 }

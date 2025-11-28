@@ -13,7 +13,39 @@ class GoogleSheetsService {
         
         // Web App URL for writing data to TT sheet
         // ✅ ĐÃ SETUP GOOGLE APPS SCRIPT
-        this.webAppUrl = 'https://script.google.com/macros/s/AKfycbzobO5AQI5fynVbpPIoDiS0SKuCy9dVJ3d38vhNkG59Vy6Jw5iG-gEyzXq7frSiVOn3/exec';
+        this.webAppUrl = 'https://script.google.com/macros/s/AKfycbyXy6Kkuw9ZznF0MLFTxH_Sw83qXgs9Ifeu3e6MARWSCuWkAHOB7aHBVZP0zHdkU0Ag/exec';
+    }
+
+    /**
+     * Write bulk data to BN sheet starting at B22
+     * @param {Array<Array>} dataRows - Array of data rows (no header)
+     */
+    async writeBulkData(dataRows) {
+        const payload = {
+            action: 'writeBulkBN',
+            data: dataRows,
+            startCell: 'B22'
+        };
+
+        // Use FormData to avoid CORS preflight
+        const formData = new FormData();
+        formData.append('payload', JSON.stringify(payload));
+
+        const response = await fetch(this.webAppUrl, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Unknown error');
+        }
+
+        return result;
     }
 
     /**
